@@ -1,3 +1,4 @@
+
 FROM node:22-alpine AS build
 WORKDIR /app
 
@@ -20,7 +21,11 @@ COPY packages/logger/tsconfig.json packages/logger/tsconfig.json
 COPY packages/redact/src packages/redact/src
 COPY packages/redact/tsconfig.json packages/redact/tsconfig.json
 
-RUN pnpm --filter @contextio/core --filter @contextio/logger --filter @contextio/redact --filter @contextio/proxy build
+RUN pnpm --filter @contextio/core \
+          --filter @contextio/logger \
+          --filter @contextio/redact \
+          --filter @contextio/proxy build
+
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
@@ -42,7 +47,7 @@ LABEL org.opencontainers.image.revision="${REVISION}"
 ENV NODE_ENV=production
 ENV CONTEXT_PROXY_BIND_HOST=0.0.0.0
 ENV CONTEXT_PROXY_PORT=4040
-ENV CONTEXT_PROXY_PLUGINS=/app/logger-plugin.js
+ENV CONTEXT_PROXY_PLUGINS=/app/logger-plugin.js,/app/redact-plugin.js
 
 COPY --from=build /app/packages/proxy/dist ./dist
 COPY --from=build /app/packages/proxy/package.json ./package.json
@@ -53,16 +58,21 @@ COPY --from=build /app/packages/logger/dist ./node_modules/@contextio/logger/dis
 COPY --from=build /app/packages/redact/package.json ./node_modules/@contextio/redact/package.json
 COPY --from=build /app/packages/redact/dist ./node_modules/@contextio/redact/dist
 
-RUN echo 'import { createLoggerPlugin } from "@contextio/logger";\n\
-const captureDir = process.env.LOGGER_CAPTURE_DIR;\n\
-const maxSessions = process.env.LOGGER_MAX_SESSIONS ? parseInt(process.env.LOGGER_MAX_SESSIONS, 10) : 0;\n\
-export default () => createLoggerPlugin({ captureDir, maxSessions });' > /app/logger-plugin.js && \
-    echo 'import { createRedactPlugin } from "@contextio/redact";\n\
-const preset = process.env.REDACT_PRESET || "pii";\n\
-const reversible = process.env.REDACT_REVERSIBLE === "true";\n\
-const policyFile = process.env.REDACT_POLICY_FILE;\n\
-const config = policyFile ? { policyFile, reversible } : { preset, reversible };\n\
-export default () => createRedactPlugin(config);' > /app/redact-plugin.js
+# ✅ FIXED: Proper JS (no HTML escaping)
+RUN printf '%s\n' \
+'import { createLoggerPlugin } from "@contextio/logger";' \
+'const captureDir = process.env.LOGGER_CAPTURE_DIR;' \
+'const maxSessions = process.env.LOGGER_MAX_SESSIONS ? parseInt(process.env.LOGGER_MAX_SESSIONS, 10) : 0;' \
+'export default () => createLoggerPlugin({ captureDir, maxSessions });' \
+> /app/logger-plugin.js && \
+printf '%s\n' \
+'import { createRedactPlugin } from "@contextio/redact";' \
+'const preset = process.env.REDACT_PRESET || "pii";' \
+'const reversible = process.env.REDACT_REVERSIBLE === "true";' \
+'const policyFile = process.env.REDACT_POLICY_FILE;' \
+'const config = policyFile ? { policyFile, reversible } : { preset, reversible };' \
+'export default () => createRedactPlugin(config);' \
+> /app/redact-plugin.js
 
 USER node
 EXPOSE 4040
