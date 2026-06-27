@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "contextio",
+  "project_id": "3cf58b83-724d-4d51-b8aa-72d0cbbc8904"
+}
