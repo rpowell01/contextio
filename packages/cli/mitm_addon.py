@@ -5,6 +5,10 @@ Rewrites intercepted HTTPS requests to route through the contextio
 proxy. mitmproxy handles TLS termination; the contextio proxy handles
 redaction, logging, and forwarding to the real API.
 
+Sets the 'x-target-url' header with the original destination URL so
+the contextio proxy can forward to the correct upstream. This header
+is only trusted when CONTEXT_PROXY_ALLOW_TARGET_OVERRIDE=1 is set.
+
 No capture logic here. That all lives in the Node.js plugin pipeline.
 
 Environment variables:
@@ -27,9 +31,13 @@ def request(flow: http.HTTPFlow) -> None:
     if not PROXY_URL:
         return
 
+    # Store the original URL for the contextio proxy to forward to
+    flow.request.headers["x-target-url"] = flow.request.url
+
     # Build source-tagged path: /{source}/{sessionId}{original_path}
     source_prefix = f"/{SOURCE}"
     if SESSION_ID:
         source_prefix += f"/{SESSION_ID}"
 
+    # Rewrite the URL to go through the contextio proxy
     flow.request.url = PROXY_URL + source_prefix + flow.request.path

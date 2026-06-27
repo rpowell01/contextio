@@ -220,30 +220,18 @@ function attachLifecycleHandlers(
  * Prepare headers for route resolution.
  *
  * The `x-target-url` header lets mitmproxy specify the original
- * destination, but is only trusted from local connections when
- * `allowTargetOverride` is enabled.
+ * destination, but is only trusted when `allowTargetOverride` is enabled.
  */
 function headersForResolution(
   headers: http.IncomingHttpHeaders,
-  remoteAddr: string | undefined,
   allowTargetOverride: boolean,
 ): Record<string, string | undefined> {
   const h = headers as Record<string, string | undefined>;
-  if (
-    h["x-target-url"] &&
-    !(allowTargetOverride && isLocalRemote(remoteAddr))
-  ) {
+  if (h["x-target-url"] && !allowTargetOverride) {
     const { "x-target-url": _drop, ...rest } = h;
     return rest;
   }
   return h;
-}
-
-function isLocalRemote(addr: string | undefined): boolean {
-  if (!addr) return false;
-  return (
-    addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1"
-  );
 }
 
 // --- Passthrough for non-POST ---
@@ -318,7 +306,6 @@ export function createProxyHandler(
 
     const routingHeaders = headersForResolution(
       req.headers,
-      req.socket.remoteAddress,
       opts.allowTargetOverride,
     );
     const { targetUrl, provider, apiFormat } = resolveTargetUrl(
