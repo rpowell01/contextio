@@ -582,6 +582,19 @@ it("resolves to openrouter with x-openrouter-baseurl header override (direct pat
   assert.equal(result.targetUrl, "https://custom.openrouter.endpoint/v1/chat/completions");
 });
 
+it("resolves to openrouter with path without /v1/ prefix (normalizes)", () => {
+  // Clients send /chat/completions, OpenRouter API requires /v1/chat/completions
+  const result = resolveTargetUrl(
+    "/chat/completions",
+    "",
+    { "x-openrouter-baseurl": "https://openrouter.ai/api" },
+    mockUpstreams,
+  );
+  assert.equal(result.provider, "openrouter");
+  assert.equal(result.apiFormat, "chat-completions");
+  assert.equal(result.targetUrl, "https://openrouter.ai/api/v1/chat/completions");
+});
+
 it("resolves to kilo with x-kilo-baseurl header (direct path)", () => {
     const result = resolveTargetUrl(
       "/v1/chat/completions",
@@ -603,6 +616,19 @@ it("resolves to kilo with x-kilo-baseurl header override (direct path)", () => {
   );
   assert.equal(result.provider, "kilo");
   assert.equal(result.targetUrl, "https://custom.kilo.endpoint/api/gateway/v1/chat/completions");
+});
+
+it("resolves to kilo with path without /v1/ prefix (normalizes)", () => {
+  // Clients send /chat/completions, Kilo Gateway API requires /v1/chat/completions
+  const result = resolveTargetUrl(
+    "/chat/completions",
+    "",
+    { "x-kilo-baseurl": "https://api.kilo.ai/api/gateway" },
+    mockUpstreams,
+  );
+  assert.equal(result.provider, "kilo");
+  assert.equal(result.apiFormat, "chat-completions");
+  assert.equal(result.targetUrl, "https://api.kilo.ai/api/gateway/v1/chat/completions");
 });
 
 it("respects STRICT_URL_FORWARDING for nvidia and ignores x-nvidia-baseurl", () => {

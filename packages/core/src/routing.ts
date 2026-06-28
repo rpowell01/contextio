@@ -287,12 +287,24 @@ export function resolveTargetUrl(
         : `/v1${pathname}`;
       targetUrl = getBaseUrl("x-nvidia-baseurl", "nvidia") + nvidiaPath + qs;
     } else if (provider === "kilo") {
-      // Kilo Code Gateway is OpenAI-compatible, direct path
-      targetUrl = getBaseUrl("x-kilo-baseurl", "kilo") + pathname + qs;
-    } else if (provider === "openrouter") {
-      // OpenRouter is OpenAI-compatible, direct path
-      targetUrl = getBaseUrl("x-openrouter-baseurl", "openrouter") + pathname + qs;
-    } else if (provider === "openai") {
+      // Kilo Code Gateway is OpenAI-compatible, normalize path: ensure /v1/ prefix
+      const kiloPath = pathname.startsWith("/v1/")
+        ? pathname
+        : `/v1${pathname}`;
+      targetUrl = getBaseUrl("x-kilo-baseurl", "kilo") + kiloPath + qs;
+} else if (provider === "openrouter") {
+  // OpenRouter is OpenAI-compatible, ensure path starts with /v1/
+  // OpenRouter API expects /v1/chat/completions prefix
+  let openrouterPath: string;
+  if (pathname.startsWith("/v1/")) {
+    // Path already has /v1/ prefix, use as-is
+    openrouterPath = pathname;
+  } else {
+    // Path needs /v1/ prefix added
+    openrouterPath = `/v1${pathname}`;
+  }
+  targetUrl = getBaseUrl("x-openrouter-baseurl", "openrouter") + openrouterPath + qs;
+} else if (provider === "openai") {
       // Codex Enterprise sets OPENAI_BASE_URL without a /v1 suffix and
       // appends paths like /responses directly. Normalize /responses to
       // /v1/responses so it reaches the correct endpoint on api.openai.com.
