@@ -1,4 +1,4 @@
-import type { Session, ProxyStatus, SessionStats } from "@/types/api";
+import type { Session, ProxyStatus, SessionStats, ContainerEnvVar } from "@/types/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4040";
 
@@ -41,6 +41,10 @@ class APIClient {
       },
     });
     return response.json();
+  }
+
+  async getContainerEnvVars(containerId: string): Promise<ContainerEnvVar[]> {
+    return this.request(`/api/containers/${containerId}/env`);
   }
 }
 

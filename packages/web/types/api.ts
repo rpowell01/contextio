@@ -60,3 +60,9 @@ export type APIResponse<T> = {
   data: T;
   error?: string;
 };
+
+export interface ContainerEnvVar {
+  key: string;
+  value: string;
+  source?: string;
+}
