@@ -15,6 +15,9 @@ const mockUpstreams: Upstreams = {
   geminiCodeAssist: "https://cloudcode-assist.googleusercontent.com",
   chatgpt: "https://chatgpt.com/backend-api",
   vertex: "https://us-central1-aiplatform.googleapis.com",
+  nvidia: "https://integrate.api.nvidia.com",
+  kilo: "https://api.kilo.ai/api/gateway",
+  openrouter: "https://openrouter.ai/api",
 };
 
 describe("classifyRequest", () => {
@@ -147,6 +150,102 @@ describe("classifyRequest", () => {
     );
     assert.equal(result.provider, "vertex");
   });
+
+it("classifies NVIDIA by x-nvidia-baseurl header", () => {
+  const result = classifyRequest("/v1/chat/completions", {
+    "x-nvidia-baseurl": "https://custom.nvidia.endpoint",
+  });
+  assert.equal(result.provider, "nvidia");
+  assert.equal(result.apiFormat, "chat-completions");
+});
+
+it("classifies NVIDIA by Bearer token starting with nv-", () => {
+  const result = classifyRequest("/v1/chat/completions", {
+    authorization: "Bearer nv-api-key",
+  });
+  assert.equal(result.provider, "nvidia");
+});
+
+it("still detects NVIDIA by Bearer token in strict mode (token detection unaffected)", () => {
+  const result = classifyRequest(
+    "/v1/chat/completions",
+    { authorization: "Bearer nv-api-key" },
+    true,
+  );
+  assert.equal(result.provider, "nvidia");
+  assert.equal(result.apiFormat, "chat-completions");
+});
+
+it("classifies OpenRouter by x-openrouter-baseurl header", () => {
+  const result = classifyRequest("/api/v1/chat/completions", {
+    "x-openrouter-baseurl": "https://custom.openrouter.endpoint",
+  });
+  assert.equal(result.provider, "openrouter");
+  assert.equal(result.apiFormat, "chat-completions");
+});
+
+it("classifies Kilo by x-kilo-baseurl header", () => {
+  const result = classifyRequest("/v1/chat/completions", {
+    "x-kilo-baseurl": "https://custom.kilo.endpoint/api/gateway",
+  });
+  assert.equal(result.provider, "kilo");
+  assert.equal(result.apiFormat, "chat-completions");
+});
+
+it("ignores provider headers when strictUrlForwarding is true and classifies by path", () => {
+  // With strictUrlForwarding=true, headers are ignored; /v1/chat/completions is an OpenAI path
+  const result = classifyRequest(
+    "/v1/chat/completions",
+    { "x-nvidia-baseurl": "https://custom.nvidia.endpoint" },
+    true,
+  );
+  assert.equal(result.provider, "openai");
+  assert.equal(result.apiFormat, "chat-completions");
+});
+
+it("ignores OpenRouter header when strictUrlForwarding is true and classifies by path", () => {
+  const result = classifyRequest(
+    "/v1/chat/completions",
+    { "x-openrouter-baseurl": "https://custom.openrouter.endpoint" },
+    true,
+  );
+  assert.equal(result.provider, "openai");
+  assert.equal(result.apiFormat, "chat-completions");
+});
+
+it("ignores Kilo header when strictUrlForwarding is true and classifies by path", () => {
+  const result = classifyRequest(
+    "/v1/chat/completions",
+    { "x-kilo-baseurl": "https://custom.kilo.endpoint/api/gateway" },
+    true,
+  );
+  assert.equal(result.provider, "openai");
+  assert.equal(result.apiFormat, "chat-completions");
+});
+
+it("classifies OpenAI by x-openai-baseurl header", () => {
+  const result = classifyRequest("/some/path", {
+    "x-openai-baseurl": "https://custom.openai.endpoint",
+  });
+  assert.equal(result.provider, "openai");
+  assert.equal(result.apiFormat, "chat-completions");
+});
+
+it("classifies OpenAI by /v1/chat/completions path", () => {
+  const result = classifyRequest("/v1/chat/completions", {});
+  assert.equal(result.provider, "openai");
+  assert.equal(result.apiFormat, "chat-completions");
+});
+
+it("ignores x-openai-baseurl header when strictUrlForwarding is true and classifies by path", () => {
+  const result = classifyRequest(
+    "/v1/chat/completions",
+    { "x-openai-baseurl": "https://custom.openai.endpoint" },
+    true,
+  );
+  assert.equal(result.provider, "openai");
+  assert.equal(result.apiFormat, "chat-completions");
+});
 });
 
 describe("extractSource", () => {
@@ -436,6 +535,138 @@ describe("resolveTargetUrl", () => {
     );
     assert.equal(result.provider, "anthropic");
   });
+
+  it("resolves to nvidia for nvidia provider with env var", () => {
+    const result = resolveTargetUrl(
+      "/v1/chat/completions",
+      "",
+      { authorization: "Bearer nv-api-key" },
+      mockUpstreams,
+    );
+    assert.equal(result.provider, "nvidia");
+    assert.equal(result.apiFormat, "chat-completions");
+    assert.equal(result.targetUrl, "https://integrate.api.nvidia.com/v1/chat/completions");
+  });
+
+  it("resolves to nvidia with x-nvidia-baseurl header override", () => {
+    const result = resolveTargetUrl(
+      "/v1/chat/completions",
+      "",
+      { "x-nvidia-baseurl": "https://custom.nvidia.endpoint" },
+      mockUpstreams,
+    );
+    assert.equal(result.provider, "nvidia");
+    assert.equal(result.targetUrl, "https://custom.nvidia.endpoint/v1/chat/completions");
+  });
+
+it("resolves to openrouter with x-openrouter-baseurl header", () => {
+    const result = resolveTargetUrl(
+      "/v1/chat/completions",
+      "",
+      { "x-openrouter-baseurl": "https://openrouter.ai/api" },
+      mockUpstreams,
+    );
+    assert.equal(result.provider, "openrouter");
+    assert.equal(result.apiFormat, "chat-completions");
+    assert.equal(result.targetUrl, "https://openrouter.ai/api/v1/chat/completions");
+  });
+
+it("resolves to openrouter with x-openrouter-baseurl header override (direct path)", () => {
+  const result = resolveTargetUrl(
+    "/v1/chat/completions",
+    "",
+    { "x-openrouter-baseurl": "https://custom.openrouter.endpoint" },
+    mockUpstreams,
+  );
+  assert.equal(result.provider, "openrouter");
+  assert.equal(result.targetUrl, "https://custom.openrouter.endpoint/v1/chat/completions");
+});
+
+it("resolves to kilo with x-kilo-baseurl header (direct path)", () => {
+    const result = resolveTargetUrl(
+      "/v1/chat/completions",
+      "",
+      { "x-kilo-baseurl": "https://api.kilo.ai/api/gateway" },
+      mockUpstreams,
+    );
+    assert.equal(result.provider, "kilo");
+    assert.equal(result.apiFormat, "chat-completions");
+    assert.equal(result.targetUrl, "https://api.kilo.ai/api/gateway/v1/chat/completions");
+  });
+
+it("resolves to kilo with x-kilo-baseurl header override (direct path)", () => {
+  const result = resolveTargetUrl(
+    "/v1/chat/completions",
+    "",
+    { "x-kilo-baseurl": "https://custom.kilo.endpoint/api/gateway" },
+    mockUpstreams,
+  );
+  assert.equal(result.provider, "kilo");
+  assert.equal(result.targetUrl, "https://custom.kilo.endpoint/api/gateway/v1/chat/completions");
+});
+
+it("respects STRICT_URL_FORWARDING for nvidia and ignores x-nvidia-baseurl", () => {
+  const result = resolveTargetUrl(
+    "/v1/chat/completions",
+    "",
+    { "x-nvidia-baseurl": "https://custom.nvidia.endpoint" },
+    mockUpstreams,
+    true,
+  );
+  // Path /v1/chat/completions is OpenAI, header ignored in strict mode
+  assert.equal(result.provider, "openai");
+  assert.equal(result.targetUrl, "https://api.openai.com/v1/chat/completions");
+});
+
+it("respects STRICT_URL_FORWARDING for openrouter and ignores x-openrouter-baseurl", () => {
+  const result = resolveTargetUrl(
+    "/v1/chat/completions",
+    "",
+    { "x-openrouter-baseurl": "https://custom.openrouter.endpoint" },
+    mockUpstreams,
+    true,
+  );
+  // Path /v1/chat/completions is OpenAI, header ignored in strict mode
+  assert.equal(result.provider, "openai");
+  assert.equal(result.targetUrl, "https://api.openai.com/v1/chat/completions");
+});
+
+it("respects STRICT_URL_FORWARDING for kilo and ignores x-kilo-baseurl", () => {
+  const result = resolveTargetUrl(
+    "/v1/chat/completions",
+    "",
+    { "x-kilo-baseurl": "https://custom.kilo.endpoint/api/gateway" },
+    mockUpstreams,
+    true,
+  );
+  // Path /v1/chat/completions is OpenAI, header ignored in strict mode
+  assert.equal(result.provider, "openai");
+  assert.equal(result.targetUrl, "https://api.openai.com/v1/chat/completions");
+});
+
+it("respects STRICT_URL_FORWARDING for openai and ignores x-openai-baseurl", () => {
+  const result = resolveTargetUrl(
+    "/v1/chat/completions",
+    "",
+    { "x-openai-baseurl": "https://custom.openai.endpoint" },
+    mockUpstreams,
+    true,
+  );
+  assert.equal(result.provider, "openai");
+  assert.equal(result.targetUrl, "https://api.openai.com/v1/chat/completions");
+});
+
+it("still detects NVIDIA by Bearer token in strict mode (token detection unaffected)", () => {
+  const result = resolveTargetUrl(
+    "/v1/chat/completions",
+    "",
+    { authorization: "Bearer nv-api-key" },
+    mockUpstreams,
+    true,
+  );
+  assert.equal(result.provider, "nvidia");
+  assert.equal(result.targetUrl, "https://integrate.api.nvidia.com/v1/chat/completions");
+});
 });
 
 describe("round-trip classification and resolution", () => {

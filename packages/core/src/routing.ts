@@ -18,12 +18,14 @@ import type {
 } from "./types.js";
 
 /**
- * URL path segments that belong to known API routes, not source tool prefixes.
- *
- * When the proxy sees `/v1/messages`, "v1" should be treated as an API
- * version prefix, not as a source tool tag. This set prevents
- * `extractSource()` from misidentifying API path segments as tools.
+ * Normalize an upstream URL by stripping trailing /v1 if present.
+ * The request path already contains API version segments, so having
+ * /v1 in both the base URL and the path would cause double-prefixing.
  */
+function normalizeUpstreamUrl(url: string): string {
+  return url.replace(/\/v1$/, "");
+}
+
 const API_PATH_SEGMENTS = new Set([
   "v1",
   "v1beta",
@@ -36,6 +38,7 @@ const API_PATH_SEGMENTS = new Set([
   "backend-api",
   "api",
   "codex",
+  "gateway",
 ]);
 
 /**
@@ -44,13 +47,14 @@ const API_PATH_SEGMENTS = new Set([
  * Uses URL path patterns and header checks. All detection heuristics
  * live here so routing and format detection stay in sync.
  *
- * Order matters: ChatGPT backend is checked first (it uses /api/ paths
- * that could collide), then Anthropic, Gemini (before OpenAI because
- * both use /models/), and finally OpenAI as the catch-all.
+ * Detection order: ChatGPT → Anthropic → Gemini → Vertex → OpenAI (path) →
+ *   NVIDIA (x-nvidia-baseurl) → OpenRouter (x-openrouter-baseurl) →
+ *   Kilo (x-kilo-baseurl) → OpenAI (x-openai-baseurl) → OpenAI (catch-all).
  */
 export function classifyRequest(
   pathname: string,
   headers: Record<string, string | undefined>,
+  strictUrlForwarding = false,
 ): { provider: Provider; apiFormat: ApiFormat } {
   // ChatGPT backend (Codex subscription uses /api/ and /backend-api/ paths)
   // /codex/ is used by Pi's openai-codex provider (appends /codex/responses to baseUrl)
@@ -80,6 +84,34 @@ export function classifyRequest(
     pathname.includes("/v1internal:");
   if (isGeminiPath || headers["x-goog-api-key"])
     return { provider: "gemini", apiFormat: "gemini" };
+
+  // NVIDIA: detect by x-nvidia-baseurl (header contains the actual URL)
+  // or Bearer nv-* token prefix. Skip header check when strictUrlForwarding.
+  if (
+    !strictUrlForwarding &&
+    headers["x-nvidia-baseurl"]
+  )
+    return { provider: "nvidia", apiFormat: "chat-completions" };
+  if (
+    pathname.includes("/v1/chat/completions") &&
+    headers["authorization"]?.startsWith("Bearer nv-")
+  )
+    return { provider: "nvidia", apiFormat: "chat-completions" };
+
+  // Kilo Code Gateway: detect by x-kilo-baseurl (header contains the actual URL)
+  // Skip header check when strictUrlForwarding.
+  if (!strictUrlForwarding && headers["x-kilo-baseurl"])
+    return { provider: "kilo", apiFormat: "chat-completions" };
+
+  // OpenRouter: detect by x-openrouter-baseurl (header contains the actual URL)
+  // Skip header check when strictUrlForwarding.
+  if (!strictUrlForwarding && headers["x-openrouter-baseurl"])
+    return { provider: "openrouter", apiFormat: "chat-completions" };
+
+  // OpenAI platform API: detect by x-openai-baseurl header (takes precedence)
+  // Skip header check when strictUrlForwarding.
+  if (!strictUrlForwarding && headers["x-openai-baseurl"])
+    return { provider: "openai", apiFormat: "chat-completions" };
 
   // OpenAI platform API (catch-all for Bearer sk- tokens)
   if (pathname.includes("/responses"))
@@ -161,41 +193,76 @@ export function resolveTargetUrl(
   search: string | null,
   headers: Record<string, string | undefined>,
   upstreams: Upstreams,
+  strictUrlForwarding = false,
 ): ResolveTargetResult {
-  const { provider, apiFormat } = classifyRequest(pathname, headers);
+  const { provider, apiFormat } = classifyRequest(
+    pathname,
+    headers,
+    strictUrlForwarding,
+  );
   const qs = search || "";
   let targetUrl = headers["x-target-url"];
+
   if (!targetUrl) {
+    // Get the base URL from header (takes precedence) or upstream config
+    const getBaseUrl = (headerName: string, upstreamKey: keyof Upstreams) => {
+      if (strictUrlForwarding) {
+        const upstreamValue = upstreams[upstreamKey];
+        const headerValue = headers[headerName];
+        if (headerValue && headerValue !== upstreamValue) {
+          console.warn(
+            `Strict URL forwarding active: ignoring ${headerName} "${headerValue}", using configured upstream "${upstreamValue}" for ${upstreamKey}`,
+          );
+        }
+        return upstreamValue;
+      }
+      const headerValue = headers[headerName];
+      if (headerValue) {
+        return normalizeUpstreamUrl(headerValue);
+      }
+      return upstreams[upstreamKey];
+    };
+
     if (provider === "chatgpt") {
       // Paths from Pi's openai-codex provider arrive as /codex/responses
       // (without the /backend-api prefix). Prepend it if missing.
       const chatgptPath = pathname.match(/^\/(api|backend-api)\//)
         ? pathname
         : `/backend-api${pathname}`;
-      targetUrl = upstreams.chatgpt + chatgptPath + qs;
+      targetUrl = getBaseUrl("x-chatgpt-baseurl", "chatgpt") + chatgptPath + qs;
     } else if (provider === "anthropic") {
-      targetUrl = upstreams.anthropic + pathname + qs;
+      targetUrl = getBaseUrl("x-anthropic-baseurl", "anthropic") + pathname + qs;
     } else if (provider === "gemini") {
       const isCodeAssist = pathname.includes("/v1internal");
       targetUrl =
-        (isCodeAssist ? upstreams.geminiCodeAssist : upstreams.gemini) +
-        pathname +
-        qs;
+        getBaseUrl(
+          isCodeAssist ? "x-gemini-code-assist-baseurl" : "x-gemini-baseurl",
+          isCodeAssist ? "geminiCodeAssist" : "gemini",
+        ) + pathname + qs;
     } else if (provider === "vertex") {
       const locMatch = pathname.match(/\/locations\/([^/]+)\//);
       const location = locMatch?.[1];
       if (location && location !== "global") {
         targetUrl = `https://${location}-aiplatform.googleapis.com${pathname}${qs}`;
       } else {
-        targetUrl = upstreams.vertex + pathname + qs;
+        targetUrl = getBaseUrl("x-vertex-baseurl", "vertex") + pathname + qs;
       }
-    } else {
+    } else if (provider === "nvidia") {
+      // NVIDIA uses OpenAI-compatible API format
+      targetUrl = getBaseUrl("x-nvidia-baseurl", "nvidia") + pathname + qs;
+    } else if (provider === "kilo") {
+      // Kilo Code Gateway is OpenAI-compatible, direct path
+      targetUrl = getBaseUrl("x-kilo-baseurl", "kilo") + pathname + qs;
+    } else if (provider === "openrouter") {
+      // OpenRouter is OpenAI-compatible, direct path
+      targetUrl = getBaseUrl("x-openrouter-baseurl", "openrouter") + pathname + qs;
+    } else if (provider === "openai") {
       // Codex Enterprise sets OPENAI_BASE_URL without a /v1 suffix and
       // appends paths like /responses directly. Normalize /responses to
       // /v1/responses so it reaches the correct endpoint on api.openai.com.
       const openaiPath =
         pathname === "/responses" ? "/v1/responses" : pathname;
-      targetUrl = upstreams.openai + openaiPath + qs;
+      targetUrl = getBaseUrl("x-openai-baseurl", "openai") + openaiPath + qs;
     }
   } else if (!targetUrl.startsWith("http")) {
     targetUrl = targetUrl + pathname + qs;

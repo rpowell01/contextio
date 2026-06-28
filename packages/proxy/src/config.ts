@@ -9,6 +9,15 @@
 import type { ProxyConfig, Upstreams } from "@contextio/core";
 
 /**
+ * Normalize an upstream URL by stripping trailing /v1 if present.
+ * The request path already contains API version segments, so having
+ * /v1 in both the base URL and the path would cause double-prefixing.
+ */
+function normalizeUpstreamUrl(url: string): string {
+  return url.replace(/\/v1$/, "");
+}
+
+/**
  * Fully resolved config with all defaults applied.
  */
 export interface ResolvedProxyConfig {
@@ -16,6 +25,7 @@ export interface ResolvedProxyConfig {
   bindHost: string;
   port: number;
   allowTargetOverride: boolean;
+  strictUrlForwarding: boolean;
 }
 
 /**
@@ -24,10 +34,18 @@ export interface ResolvedProxyConfig {
  * Priority: programmatic overrides > environment variables > defaults.
  *
  * Environment variables:
- * - `UPSTREAM_OPENAI_URL`, `UPSTREAM_ANTHROPIC_URL`, etc. for upstream URLs
+ * - `UPSTREAM_OPENAI_URL`, `UPSTREAM_ANTHROPIC_URL`, etc. for upstream URL defaults
+ * - `UPSTREAM_NVIDIA_URL` for NVIDIA API (default: https://integrate.api.nvidia.com)
+ * - `UPSTREAM_KILO_URL` for Kilo Code Gateway (default: https://api.kilo.ai/api/gateway)
+ * - `UPSTREAM_OPENROUTER_URL` for OpenRouter (default: https://openrouter.ai/api)
  * - `CONTEXT_PROXY_BIND_HOST` for bind address (default: "127.0.0.1")
  * - `CONTEXT_PROXY_PORT` for port (default: 4040)
- * - `CONTEXT_PROXY_ALLOW_TARGET_OVERRIDE=1` to allow x-target-url header
+ * - `STRICT_URL_FORWARDING=true` to ignore x-<provider>-baseurl headers and use configured upstreams exclusively
+ *
+ * Header-based routing (takes precedence over env vars unless `STRICT_URL_FORWARDING=true`):
+ * - `x-nvidia-baseurl`: Override NVIDIA upstream URL
+ * - `x-kilo-baseurl`: Override Kilo upstream URL
+ * - `x-openrouter-baseurl`: Override OpenRouter upstream URL
  */
 export function resolveConfig(
   overrides?: ProxyConfig,
@@ -46,6 +64,15 @@ export function resolveConfig(
     vertex:
       process.env.UPSTREAM_VERTEX_URL ||
       "https://us-central1-aiplatform.googleapis.com",
+nvidia:
+    process.env.UPSTREAM_NVIDIA_URL ||
+    "https://integrate.api.nvidia.com",
+  kilo:
+    process.env.UPSTREAM_KILO_URL ||
+    "https://api.kilo.ai/api/gateway",
+  openrouter:
+    process.env.UPSTREAM_OPENROUTER_URL ||
+    "https://openrouter.ai/api",
   };
 
   const bindHost =
@@ -61,15 +88,33 @@ export function resolveConfig(
     overrides?.allowTargetOverride ??
     process.env.CONTEXT_PROXY_ALLOW_TARGET_OVERRIDE === "1";
 
+  const strictUrlForwarding =
+    overrides?.strictUrlForwarding ??
+    process.env.STRICT_URL_FORWARDING === "true";
+
   const upstreams: Upstreams = {
     ...defaultUpstreams,
     ...overrides?.upstreams,
   };
 
+  // Normalize upstream URLs: strip trailing /v1 to avoid double-prefixing
+  const normalizedUpstreams: Upstreams = {
+    openai: normalizeUpstreamUrl(upstreams.openai),
+    anthropic: normalizeUpstreamUrl(upstreams.anthropic),
+    chatgpt: normalizeUpstreamUrl(upstreams.chatgpt),
+    gemini: normalizeUpstreamUrl(upstreams.gemini),
+    geminiCodeAssist: normalizeUpstreamUrl(upstreams.geminiCodeAssist),
+    vertex: normalizeUpstreamUrl(upstreams.vertex),
+    nvidia: normalizeUpstreamUrl(upstreams.nvidia),
+    kilo: normalizeUpstreamUrl(upstreams.kilo),
+    openrouter: normalizeUpstreamUrl(upstreams.openrouter),
+  };
+
   return {
-    upstreams,
+    upstreams: normalizedUpstreams,
     bindHost,
     port,
     allowTargetOverride,
+    strictUrlForwarding,
   };
 }
