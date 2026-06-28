@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **routing**: Removed presence header checks (`x-*-client`) in favor of URL header detection only. Detection order is now: ChatGPT → Anthropic → Gemini → Vertex → OpenAI (path) → NVIDIA → OpenRouter → Kilo → OpenAI (header).
 - **routing**: Added `strictUrlForwarding` parameter to `classifyRequest()` to skip header-based detection when enabled.
 - **routing**: Improved logging format for strict URL forwarding warnings with `[StrictURLForwarding]` prefix.
+- **types**: Added `nvidia`, `openrouter`, `kilo` to `Provider` type and `Upstreams` interface to fix TypeScript compilation errors.
 
 ## [0.3.1] - 2026-06-27
 
