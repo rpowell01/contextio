@@ -48,6 +48,8 @@ ENV NODE_ENV=production
 ENV CONTEXT_PROXY_BIND_HOST=0.0.0.0
 ENV CONTEXT_PROXY_PORT=4040
 ENV CONTEXT_PROXY_PLUGINS=/app/logger-plugin.js,/app/redact-plugin.js
+ENV LOG_TRAFFIC=false
+ENV DEBUG_ROUTING=false
 
 COPY --from=build /app/packages/proxy/dist ./dist
 COPY --from=build /app/packages/proxy/package.json ./package.json

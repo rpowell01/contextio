@@ -56,6 +56,15 @@ export function classifyRequest(
   headers: Record<string, string | undefined>,
   strictUrlForwarding = false,
 ): { provider: Provider; apiFormat: ApiFormat } {
+  if (process.env.DEBUG_ROUTING === "true") {
+    console.log(
+      `[DEBUG_ROUTING] classifyRequest: pathname=${pathname}`,
+    );
+    console.log(
+      `[DEBUG_ROUTING] headers: ${Object.keys(headers).join(", ")}`,
+    );
+  }
+
   // ChatGPT backend (Codex subscription uses /api/ and /backend-api/ paths)
   // /codex/ is used by Pi's openai-codex provider (appends /codex/responses to baseUrl)
   if (pathname.match(/^\/(api|backend-api|codex)\//))
@@ -87,9 +96,16 @@ export function classifyRequest(
 
   // NVIDIA: detect by x-nvidia-baseurl (header contains the actual URL)
   // or Bearer nv-* token prefix. Skip header check when strictUrlForwarding.
+  // Note: Node.js lowercases all incoming headers, so we check lowercase.
+  const nvidiaBaseUrl = headers["x-nvidia-baseurl"];
+  if (process.env.DEBUG_ROUTING === "true") {
+    console.error(
+      `[DEBUG_ROUTING] NVIDIA check: strictUrlForwarding=${strictUrlForwarding}, x-nvidia-baseurl=${nvidiaBaseUrl || "NOT SET"}`,
+    );
+  }
   if (
     !strictUrlForwarding &&
-    headers["x-nvidia-baseurl"]
+    nvidiaBaseUrl
   )
     return { provider: "nvidia", apiFormat: "chat-completions" };
   if (
@@ -203,6 +219,15 @@ export function resolveTargetUrl(
   const qs = search || "";
   let targetUrl: string | undefined = headers["x-target-url"];
 
+  if (process.env.DEBUG_ROUTING === "true") {
+    console.error(
+      `[DEBUG_ROUTING] pathname=${pathname}, provider=${provider}, apiFormat=${apiFormat}`,
+    );
+    console.error(
+      `[DEBUG_ROUTING] x-target-url=${headers["x-target-url"] || "none"}`,
+    );
+  }
+
   if (!targetUrl) {
     // Get the base URL from header (takes precedence) or upstream config
     const getBaseUrl = (headerName: string, upstreamKey: keyof Upstreams) => {
@@ -219,7 +244,13 @@ export function resolveTargetUrl(
       }
       const headerValue = headers[headerName];
       if (headerValue) {
-        return normalizeUpstreamUrl(headerValue);
+        const normalized = normalizeUpstreamUrl(headerValue);
+        if (process.env.DEBUG_ROUTING === "true") {
+          console.error(
+            `[DEBUG_ROUTING] Using ${headerName} header: ${normalized}`,
+          );
+        }
+        return normalized;
       }
       return upstreams[upstreamKey];
     };
@@ -265,10 +296,22 @@ export function resolveTargetUrl(
         pathname === "/responses" ? "/v1/responses" : pathname;
       targetUrl = getBaseUrl("x-openai-baseurl", "openai") + openaiPath + qs;
     }
+
+    if (process.env.DEBUG_ROUTING === "true" && targetUrl) {
+      console.error(`[DEBUG_ROUTING] Final targetUrl: ${targetUrl}`);
+    }
   } else if (targetUrl && !targetUrl.startsWith("http")) {
     targetUrl = targetUrl + pathname + qs;
+    if (process.env.DEBUG_ROUTING === "true") {
+      console.error(`[DEBUG_ROUTING] Relative URL resolved to: ${targetUrl}`);
+    }
   }
 
   // targetUrl may be undefined for unknown providers
+  if (process.env.DEBUG_ROUTING === "true") {
+    console.error(
+      `[DEBUG_ROUTING] Result: targetUrl=${targetUrl}, provider=${provider}`,
+    );
+  }
   return { targetUrl, provider, apiFormat };
 }

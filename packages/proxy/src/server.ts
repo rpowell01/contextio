@@ -74,7 +74,8 @@ async function loadPluginsFromEnv(): Promise<ProxyPlugin[]> {
 
 async function main(): Promise<void> {
   const plugins = await loadPluginsFromEnv();
-  const proxy = createProxy({ plugins });
+  const logTraffic = process.env.LOG_TRAFFIC === "true";
+  const proxy = createProxy({ plugins, logTraffic });
   await proxy.start();
 
   // Keep the process alive

@@ -225,8 +225,13 @@ function attachLifecycleHandlers(
 function headersForResolution(
   headers: http.IncomingHttpHeaders,
   allowTargetOverride: boolean,
+  logTraffic: boolean,
 ): Record<string, string | undefined> {
   const h = headers as Record<string, string | undefined>;
+  if (logTraffic) {
+    console.error(`[DEBUG] headersForResolution: allowTargetOverride=${allowTargetOverride}`);
+    console.error(`[DEBUG] x-target-url present: ${!!h["x-target-url"]}`);
+  }
   if (h["x-target-url"] && !allowTargetOverride) {
     const { "x-target-url": _drop, ...rest } = h;
     return rest;
@@ -304,10 +309,20 @@ export function createProxyHandler(
     const { source, sessionId, cleanPath } = extractSource(parsedUrl.pathname!);
     const search = parsedUrl.search || null;
 
+    if (opts.logTraffic) {
+      console.error(`[DEBUG] handleProxy: path=${parsedUrl.pathname}, cleanPath=${cleanPath}`);
+      console.error(`[DEBUG] Raw headers: ${JSON.stringify(req.headers, null, 2)}`);
+    }
+
     const routingHeaders = headersForResolution(
       req.headers,
       opts.allowTargetOverride,
+      opts.logTraffic,
     );
+
+    if (opts.logTraffic) {
+      console.error(`[DEBUG] Routing headers: ${JSON.stringify(routingHeaders, null, 2)}`);
+    }
 
     const { targetUrl, provider, apiFormat } = resolveTargetUrl(
       cleanPath,
@@ -318,14 +333,18 @@ export function createProxyHandler(
 
     if (opts.logTraffic) {
       const hasAuth = !!req.headers.authorization;
-      console.log(
+      const headerKeys = Object.keys(req.headers);
+      console.error(
         `[DEBUG] Routing: provider=${provider}, apiFormat=${apiFormat}, targetUrl=${targetUrl}, auth=${hasAuth}`,
+      );
+      console.error(
+        `[DEBUG] Headers: ${headerKeys.map((k) => `${k}=${req.headers[k]}`).join(", ")}`,
       );
     }
 
     if (!targetUrl) {
       if (opts.logTraffic) {
-        console.log(
+        console.error(
           `[DEBUG] Unknown provider for path '${cleanPath}', provider=${provider}`,
         );
       }
@@ -345,7 +364,7 @@ export function createProxyHandler(
     if (opts.logTraffic) {
       const hasAuth = !!req.headers.authorization;
       const sourceTag = source ? `[${source}]` : "";
-      console.log(
+      console.error(
         `${req.method} ${req.url} → ${targetUrl} [${provider}] ${sourceTag} auth=${hasAuth}`,
       );
     }
