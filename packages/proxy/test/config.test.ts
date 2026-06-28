@@ -138,4 +138,16 @@ describe("resolveConfig", () => {
 
     assert.equal(config.strictUrlForwarding, false);
   });
+
+  it("handles null/undefined URLs gracefully", () => {
+    // When overrides.upstreams contains undefined values, they should be handled
+    const config = resolveConfig({
+      upstreams: {
+        openai: undefined as unknown as string,
+      } as any,
+    });
+
+    // Should fall back to default
+    assert.equal(config.upstreams.openai, "https://api.openai.com");
+  });
 });

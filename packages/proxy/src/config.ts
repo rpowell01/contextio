@@ -12,8 +12,14 @@ import type { ProxyConfig, Upstreams } from "@contextio/core";
  * Normalize an upstream URL by stripping trailing /v1 if present.
  * The request path already contains API version segments, so having
  * /v1 in both the base URL and the path would cause double-prefixing.
+ *
+ * URLs without a trailing /v1 pass through unchanged.
+ * Empty/null URLs are returned as-is (validation happens at a higher level).
  */
 function normalizeUpstreamUrl(url: string): string {
+  if (!url || typeof url !== "string") {
+    return url;
+  }
   return url.replace(/\/v1$/, "");
 }
 

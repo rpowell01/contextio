@@ -210,8 +210,9 @@ export function resolveTargetUrl(
         const upstreamValue = upstreams[upstreamKey];
         const headerValue = headers[headerName];
         if (headerValue && headerValue !== upstreamValue) {
+          // TODO: Replace with structured logger when logger is available
           console.warn(
-            `Strict URL forwarding active: ignoring ${headerName} "${headerValue}", using configured upstream "${upstreamValue}" for ${upstreamKey}`,
+            `[StrictURLForwarding] Ignoring ${headerName} "${headerValue}", using configured upstream "${upstreamValue}"`,
           );
         }
         return upstreamValue;
