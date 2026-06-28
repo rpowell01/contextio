@@ -1,0 +1,33 @@
+{
+  "name": "@contextio/web",
+  "version": "0.1.0",
+  "description": "Web interface for ContextIO proxy monitoring and inspection",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next out",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "15.3.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwind-merge": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.7",
+    "eslint": "^9.22.1",
+    "eslint-config-next": "15.3.1",
+    "tailwindcss": "^4.1.0",
+    "postcss": "^8.5.6",
+    "autoprefixer": "^10.4.21"
+  }
+}
