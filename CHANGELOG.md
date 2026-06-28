@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **routing**: Added `strictUrlForwarding` parameter to `classifyRequest()` to skip header-based detection when enabled.
 - **routing**: Improved logging format for strict URL forwarding warnings with `[StrictURLForwarding]` prefix.
 - **types**: Added `nvidia`, `openrouter`, `kilo` to `Provider` type and `Upstreams` interface to fix TypeScript compilation errors.
+- **types**: Added `strictUrlForwarding` to `ProxyConfig` interface for programmatic configuration.
 
 ## [0.3.1] - 2026-06-27
 
