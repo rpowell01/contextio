@@ -22,11 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **config**: Added automatic stripping of trailing `/v1` from upstream URLs (both environment variables and header overrides) to prevent double-prefixing since request paths already contain API version segments.
 - **tests**: Fixed OpenRouter and Kilo tests to include required header detection (`x-openrouter-baseurl`, `x-kilo-baseurl`).
 - **tests**: Added verification tests for `STRICT_URL_FORWARDING` behavior - when enabled, headers (`x-nvidia-baseurl`, `x-kilo-baseurl`, `x-openrouter-baseurl`, `x-openai-baseurl`) are ignored and path-based classification is used. NVIDIA Bearer token detection (`Bearer nv-*`) is unaffected by strict mode.
+- **config**: Added null/undefined handling in `normalizeUpstreamUrl()` for robustness. URLs without trailing `/v1` pass through unchanged.
 
 ### Changed
 
 - **routing**: Removed presence header checks (`x-*-client`) in favor of URL header detection only. Detection order is now: ChatGPT → Anthropic → Gemini → Vertex → OpenAI (path) → NVIDIA → OpenRouter → Kilo → OpenAI (header).
 - **routing**: Added `strictUrlForwarding` parameter to `classifyRequest()` to skip header-based detection when enabled.
+- **routing**: Improved logging format for strict URL forwarding warnings with `[StrictURLForwarding]` prefix.
 
 ## [0.3.1] - 2026-06-27
 
