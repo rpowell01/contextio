@@ -204,6 +204,7 @@ export interface ProxyConfig {
   bindHost?: string;
   upstreams?: Partial<Upstreams>;
   allowTargetOverride?: boolean;
+  strictUrlForwarding?: boolean;
   plugins?: ProxyPlugin[];
 }
 
