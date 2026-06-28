@@ -281,7 +281,11 @@ export function resolveTargetUrl(
       }
     } else if (provider === "nvidia") {
       // NVIDIA uses OpenAI-compatible API format
-      targetUrl = getBaseUrl("x-nvidia-baseurl", "nvidia") + pathname + qs;
+      // Normalize path: ensure /v1/ prefix for chat/completions endpoints
+      const nvidiaPath = pathname.startsWith("/v1/")
+        ? pathname
+        : `/v1${pathname}`;
+      targetUrl = getBaseUrl("x-nvidia-baseurl", "nvidia") + nvidiaPath + qs;
     } else if (provider === "kilo") {
       // Kilo Code Gateway is OpenAI-compatible, direct path
       targetUrl = getBaseUrl("x-kilo-baseurl", "kilo") + pathname + qs;
