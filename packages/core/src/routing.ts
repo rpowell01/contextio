@@ -201,7 +201,7 @@ export function resolveTargetUrl(
     strictUrlForwarding,
   );
   const qs = search || "";
-  let targetUrl = headers["x-target-url"];
+  let targetUrl: string | undefined = headers["x-target-url"];
 
   if (!targetUrl) {
     // Get the base URL from header (takes precedence) or upstream config
@@ -268,5 +268,7 @@ export function resolveTargetUrl(
   } else if (!targetUrl.startsWith("http")) {
     targetUrl = targetUrl + pathname + qs;
   }
-  return { targetUrl, provider, apiFormat };
+
+  // targetUrl is guaranteed to be set after the above logic
+  return { targetUrl: targetUrl!, provider, apiFormat };
 }

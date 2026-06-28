@@ -20,6 +20,9 @@ export type Provider =
   | "chatgpt"
   | "gemini"
   | "vertex"
+  | "nvidia"
+  | "openrouter"
+  | "kilo"
   | "unknown";
 
 /**
@@ -58,6 +61,9 @@ export interface Upstreams {
   gemini: string;
   geminiCodeAssist: string;
   vertex: string;
+  nvidia: string;
+  openrouter: string;
+  kilo: string;
 }
 
 // --- Capture data (the full request/response record) ---
