@@ -265,10 +265,10 @@ export function resolveTargetUrl(
         pathname === "/responses" ? "/v1/responses" : pathname;
       targetUrl = getBaseUrl("x-openai-baseurl", "openai") + openaiPath + qs;
     }
-  } else if (!targetUrl.startsWith("http")) {
+  } else if (targetUrl && !targetUrl.startsWith("http")) {
     targetUrl = targetUrl + pathname + qs;
   }
 
-  // targetUrl is guaranteed to be set after the above logic
-  return { targetUrl: targetUrl!, provider, apiFormat };
+  // targetUrl may be undefined for unknown providers
+  return { targetUrl, provider, apiFormat };
 }

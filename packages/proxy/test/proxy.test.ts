@@ -1192,3 +1192,35 @@ describe("plugin error resilience", () => {
     }
   });
 });
+
+describe("unknown provider handling", () => {
+  it("returns 404 for unknown provider path", async () => {
+    const proxy = createProxy({
+      port: 0,
+      upstreams: {
+        anthropic: "http://localhost:65535",
+        openai: "http://localhost:65535",
+        gemini: "http://localhost:65535",
+        chatgpt: "http://localhost:65535",
+        geminiCodeAssist: "http://localhost:65535",
+      },
+    });
+
+    await proxy.start();
+
+    try {
+      const res = await makeRequest(proxy.port, {
+        path: "/unknown-provider-path",
+        method: "POST",
+        body: "{}",
+      });
+
+      assert.equal(res.status, 404);
+      const body = JSON.parse(res.body);
+      assert.equal(body.error.type, "route_error");
+      assert.ok(body.error.message.includes("unknown provider"));
+    } finally {
+      await proxy.stop();
+    }
+  });
+});

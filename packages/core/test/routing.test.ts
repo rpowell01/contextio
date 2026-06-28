@@ -667,6 +667,17 @@ it("still detects NVIDIA by Bearer token in strict mode (token detection unaffec
   assert.equal(result.provider, "nvidia");
   assert.equal(result.targetUrl, "https://integrate.api.nvidia.com/v1/chat/completions");
 });
+
+it("returns undefined targetUrl for unknown provider", () => {
+  const result = resolveTargetUrl(
+    "/unknown/path",
+    "",
+    {},
+    mockUpstreams,
+  );
+  assert.equal(result.provider, "unknown");
+  assert.equal(result.targetUrl, undefined);
+});
 });
 
 describe("round-trip classification and resolution", () => {

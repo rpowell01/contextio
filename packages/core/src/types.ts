@@ -217,7 +217,7 @@ export interface ExtractSourceResult {
 }
 
 export interface ResolveTargetResult {
-  targetUrl: string;
+  targetUrl: string | undefined;
   provider: Provider;
   apiFormat: ApiFormat;
 }

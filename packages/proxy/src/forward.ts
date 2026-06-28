@@ -308,12 +308,39 @@ export function createProxyHandler(
       req.headers,
       opts.allowTargetOverride,
     );
+
     const { targetUrl, provider, apiFormat } = resolveTargetUrl(
       cleanPath,
       search,
       routingHeaders,
       opts.upstreams,
     );
+
+    if (opts.logTraffic) {
+      const hasAuth = !!req.headers.authorization;
+      console.log(
+        `[DEBUG] Routing: provider=${provider}, apiFormat=${apiFormat}, targetUrl=${targetUrl}, auth=${hasAuth}`,
+      );
+    }
+
+    if (!targetUrl) {
+      if (opts.logTraffic) {
+        console.log(
+          `[DEBUG] Unknown provider for path '${cleanPath}', provider=${provider}`,
+        );
+      }
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error: {
+            message: `Unable to route request: unknown provider for path '${cleanPath}'`,
+            type: "route_error",
+            provider,
+          },
+        }),
+      );
+      return;
+    }
 
     if (opts.logTraffic) {
       const hasAuth = !!req.headers.authorization;
