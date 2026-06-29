@@ -3,7 +3,7 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 # Copy root package files for pnpm install
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .npmrc ./
 
 # Copy all package.json files for workspace resolution
 COPY packages/core/package.json packages/core/package.json
