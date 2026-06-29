@@ -16,13 +16,12 @@ COPY packages/cli/package.json packages/cli/package.json
 # Enable corepack and install dependencies
 # Set PNPM_MINIMUM_RELEASE_AGE=0 to allow newer packages in lockfile
 # Export PATH to include pnpm global bin directory
-# pnpm 11.x workflow: install (flags builds), approve-builds, install (rebuilds approved)
+# Use --ignore-scripts then rebuild for native modules (sharp, unrs-resolver)
 RUN corepack enable && \
     export PATH="$PATH:/root/.local/share/pnpm/bin" && \
     pnpm config set minimum-release-age 0 --global && \
-    pnpm install && \
-    pnpm approve-builds sharp unrs-resolver && \
-    pnpm install
+    pnpm install --ignore-scripts && \
+    pnpm rebuild sharp unrs-resolver
 
 # Copy source files
 COPY packages/core/src packages/core/src
