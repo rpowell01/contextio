@@ -3,10 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { navigation } from "@/lib/nav-config";
+import { getNavigationItems, NavigationConfig } from "@/lib/nav-config";
 
-export function Header() {
+export interface HeaderProps {
+  /**
+   * Optional navigation configuration to override default navigation items.
+   * Set enabled: false on individual items to hide them.
+   */
+  navigationConfig?: NavigationConfig;
+}
+
+export function Header({ navigationConfig }: HeaderProps) {
   const pathname = usePathname();
+  const navigation = getNavigationItems(navigationConfig);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -20,7 +29,7 @@ export function Header() {
           <span className="font-bold">ContextIO</span>
         </div>
         <nav className="flex items-center space-x-2">
-          {navigation.map((item) => {
+          {navigation.map((item, index) => {
             const isActive = pathname === item.href;
             return (
               <Link

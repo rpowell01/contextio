@@ -11,6 +11,9 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
     "noEmit": true,
     "esModuleInterop": true,
     "moduleDetection": "auto",
@@ -34,6 +37,7 @@
     "app/**/*",
     "components/**/*",
     "lib/**/*",
+    "config/**/*",
     "types/**/*",
     "utils/**/*",
     ".next/types/**/*.ts"
