@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { Capture, CaptureWithRedaction, RedactionDetails } from "@/types/api";
+import type { Capture, CaptureWithRedaction, RedactionDetails, PaginationMeta } from "@/types/api";
 
 const CAPTURE_DIR = join(homedir(), ".contextio", "captures");
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit for capture files
@@ -198,6 +198,14 @@ export async function GET(request: Request) {
     const redactionType = url.searchParams.get("redactionType");
     const includeRedaction = url.searchParams.get("includeRedaction") === "true";
 
+    // Pagination parameters
+    const page = parseInt(url.searchParams.get("page") ?? "1", 10);
+    const pageSize = parseInt(url.searchParams.get("pageSize") ?? "20", 10);
+
+    // Validate pagination parameters
+    const validPage = page > 0 ? page : 1;
+    const validPageSize = pageSize > 0 && pageSize <= 100 ? pageSize : 20;
+
     // Validate date parameters
     const fromDate = validateDate(from);
     const toDate = validateDate(to);
@@ -268,10 +276,23 @@ export async function GET(request: Request) {
       }
     }
 
+    // Build pagination metadata
+    const pagination: PaginationMeta = {
+      page: validPage,
+      pageSize: validPageSize,
+      total: captures.length,
+      totalPages: Math.ceil(captures.length / validPageSize),
+    };
+
+    // Apply pagination
+    const startIndex = (validPage - 1) * validPageSize;
+    const paginatedCaptures = captures.slice(startIndex, startIndex + validPageSize);
+
     // Always return consistent response format
     return Response.json({
-      data: captures,
+      data: paginatedCaptures,
       total: captures.length,
+      pagination,
     });
   } catch (error) {
     console.error("Error in captures API:", error);

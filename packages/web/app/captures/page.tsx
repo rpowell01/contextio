@@ -3,20 +3,26 @@
 import { MainLayout } from "@/components/main-layout";
 import { apiClient } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import type { Capture, CaptureWithRedaction } from "@/types/api";
+import type { Capture, CaptureWithRedaction, PaginationMeta } from "@/types/api";
 import { useState, useEffect } from "react";
+
+const DEFAULT_PAGE_SIZE = 20;
 
 export default function CapturesPage() {
   const [captures, setCaptures] = useState<(Capture | CaptureWithRedaction)[]>([]);
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const fetchCaptures = async () => {
+  const fetchCaptures = async (page: number = currentPage, pageSizeParam: number = pageSize) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.getCaptures();
+      const response = await apiClient.getCaptures({ page, pageSize: pageSizeParam });
       setCaptures(response.data);
+      setPagination(response.pagination ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -37,6 +43,29 @@ export default function CapturesPage() {
             <p className="text-muted-foreground">
               Captured API request/response pairs with redaction details
             </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label htmlFor="pageSize" className="text-sm text-muted-foreground">
+                Per page:
+              </label>
+              <select
+                id="pageSize"
+                value={pageSize}
+                onChange={(e) => {
+                  const newPageSize = parseInt(e.target.value, 10);
+                  setPageSize(newPageSize);
+                  setCurrentPage(1);
+                  fetchCaptures(1, newPageSize);
+                }}
+                className="rounded border border-input bg-background px-2 py-1 text-sm"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -115,6 +144,42 @@ export default function CapturesPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between border-t pt-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {captures.length} of {pagination.total} captures
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const newPage = Math.max(1, (pagination.page ?? 1) - 1);
+                  setCurrentPage(newPage);
+                  fetchCaptures(newPage, pageSize);
+                }}
+                disabled={(pagination.page ?? 1) <= 1}
+                className="rounded px-3 py-1 text-sm border border-input bg-background hover:bg-accent disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-muted-foreground">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <button
+                onClick={() => {
+                  const newPage = (pagination.page ?? 1) + 1;
+                  setCurrentPage(newPage);
+                  fetchCaptures(newPage, pageSize);
+                }}
+                disabled={(pagination.page ?? 1) >= pagination.totalPages}
+                className="rounded px-3 py-1 text-sm border border-input bg-background hover:bg-accent disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

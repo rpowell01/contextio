@@ -195,6 +195,20 @@ export interface CaptureWithRedaction extends Capture {
 }
 
 /**
+ * Pagination metadata for API responses.
+ */
+export interface PaginationMeta {
+  /** Current page number (1-indexed) */
+  page: number;
+  /** Number of items per page */
+  pageSize: number;
+  /** Total number of items available */
+  total: number;
+  /** Total number of pages */
+  totalPages: number;
+}
+
+/**
  * Generic API response wrapper with optional pagination.
  */
 export type APIResponse<T> = {
@@ -202,6 +216,8 @@ export type APIResponse<T> = {
   data: T;
   /** Total count for paginated results */
   total?: number;
+  /** Pagination metadata */
+  pagination?: PaginationMeta;
   /** Error message if request failed */
   error?: string;
 };

@@ -178,6 +178,8 @@ class APIClient {
     to?: string;
     redactionType?: string;
     includeRedaction?: boolean;
+    page?: number;
+    pageSize?: number;
   }): Promise<APIResponse<(Capture | CaptureWithRedaction)[]>> {
     const params = new URLSearchParams();
     if (filters?.sessionId) params.set("sessionId", filters.sessionId);
@@ -187,6 +189,8 @@ class APIClient {
     if (filters?.to) params.set("to", filters.to);
     if (filters?.redactionType) params.set("redactionType", filters.redactionType);
     if (filters?.includeRedaction) params.set("includeRedaction", "true");
+    if (filters?.page) params.set("page", String(filters.page));
+    if (filters?.pageSize) params.set("pageSize", String(filters.pageSize));
 
     const query = params.toString();
     return this.request(`/api/captures${query ? `?${query}` : ""}`);
