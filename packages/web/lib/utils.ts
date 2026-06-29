@@ -80,7 +80,9 @@ export function isValidSession(data: unknown): data is Session {
     typeof session.responseIsStreaming === "boolean" &&
     typeof session.requestBody === "object" &&
     session.requestBody !== null &&
-    typeof session.responseBody === "string" &&
+    (typeof session.responseBody === "string" ||
+      session.responseBody === null ||
+      session.responseBody === undefined) &&
     typeof session.timings === "object" &&
     typeof (session.timings as Record<string, unknown>).total_ms === "number"
   );
