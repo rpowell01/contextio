@@ -1,4 +1,12 @@
 /**
+ * API type definitions for the web package.
+ * 
+ * This file contains all TypeScript interfaces and types used for API
+ * request/response handling, session management, provider configurations,
+ * logging, and metrics.
+ */
+
+/**
  * Represents an API session with request/response details.
  */
 export interface Session {
@@ -20,12 +28,13 @@ export interface Session {
   responseStatus: number;
   /** Whether the response is streaming */
   responseIsStreaming: boolean;
-  /** Raw response body as string */
+  /** Raw response body as string (optional, nullable) */
   responseBody?: string | null;
   /** ISO timestamp of when the session was created */
   timestamp: string;
   /** Timing information in milliseconds */
   timings: {
+    /** Total time in milliseconds for the session */
     total_ms: number;
   };
 }
@@ -79,7 +88,7 @@ export interface ProxyStatus {
   pid?: number;
   /** Port the proxy is listening on */
   port: number;
-  /** Human-readable uptime string */
+  /** Human-readable uptime string (optional) */
   uptime?: string;
   /** Number of active sessions */
   sessions: number;
@@ -109,17 +118,29 @@ export interface RedactionRule {
   pattern: string;
   /** Replacement string or placeholder */
   replacement: string;
+  /** Optional context strings for rule matching */
   context?: string[];
+  /** Optional window size for context matching */
   contextWindow?: number;
 }
 
+/**
+ * List of allowed strings and patterns for filtering.
+ */
 export interface Allowlist {
+  /** Array of strings to always allow (optional) */
   strings?: string[];
+  /** Array of regex patterns to always allow (optional) */
   patterns?: string[];
 }
 
+/**
+ * Path filtering configuration for including or excluding specific routes.
+ */
 export interface Paths {
+  /** Array of paths to exclusively include (optional) */
   only?: string[];
+  /** Array of paths to skip/exclude (optional) */
   skip?: string[];
 }
 
@@ -153,9 +174,13 @@ export interface Capture {
   timestamp: string;
   /** Timing information in milliseconds */
   timings: {
+    /** Time in milliseconds to send the request */
     send_ms: number;
+    /** Time in milliseconds to wait for response */
     wait_ms: number;
+    /** Time in milliseconds to receive the response */
     receive_ms: number;
+    /** Total time in milliseconds for the capture */
     total_ms: number;
   };
 }
@@ -214,83 +239,151 @@ export interface PaginationMeta {
 export type APIResponse<T> = {
   /** Response data */
   data: T;
-  /** Total count for paginated results */
+  /** Total count for paginated results (optional) */
   total?: number;
-  /** Pagination metadata */
+  /** Pagination metadata (optional) */
   pagination?: PaginationMeta;
-  /** Error message if request failed */
+  /** Error message if request failed (optional) */
   error?: string;
 };
 
 // --- Metrics ---
 
+/**
+ * Aggregated metrics data for API usage and system activity.
+ */
 export type MetricsData = {
+  /** Traffic metrics over time */
   traffic: TrafficMetric[];
+  /** Provider usage statistics */
   providers: ProviderUsage[];
+  /** Redaction activity metrics */
   redactions: RedactionMetric[];
+  /** Total bytes sent in requests */
   totalRequestBytes: number;
+  /** Total bytes received in responses */
   totalResponseBytes: number;
+  /** Total input tokens across all requests */
   totalInputTokens: number;
+  /** Total output tokens across all responses */
   totalOutputTokens: number;
 };
 
+/**
+ * Usage statistics for a specific API provider.
+ */
 export type ProviderUsage = {
+  /** Provider identifier */
   provider: string;
+  /** Number of requests made to this provider */
   requestCount: number;
+  /** Total input tokens consumed */
   totalInputTokens: number;
+  /** Total output tokens generated */
   totalOutputTokens: number;
 };
 
+/**
+ * Redaction activity metric for a point in time.
+ */
 export type RedactionMetric = {
+  /** ISO timestamp of the metric */
   timestamp: string;
+  /** Number of redactions at this time */
   count: number;
 };
 
+/**
+ * Time range configuration for metrics queries.
+ */
 export type TimeRange = {
+  /** Value identifier for the time range */
   value: string;
+  /** Human-readable label for display */
   label: string;
+  /** Number of hours in the range */
   hours: number;
 };
 
+/**
+ * Traffic metric for a point in time.
+ */
 export type TrafficMetric = {
+  /** ISO timestamp of the metric */
   timestamp: string;
+  /** Bytes sent in requests */
   requestBytes: number;
+  /** Bytes received in responses */
   responseBytes: number;
 };
 
 // --- Container Environment Variables ---
 
+/**
+ * Environment variable configuration for a container.
+ */
 export interface ContainerEnvVar {
+  /** The environment variable name/key */
   key: string;
+  /** The environment variable value */
   value: string;
+  /** Optional source identifier for where this variable originated */
   source?: string;
 }
 
 // --- Container Logs ---
 
+/**
+ * Log level severity types.
+ */
 export type LogLevel = "error" | "warn" | "info" | "debug";
 
+/**
+ * A single log entry from container output.
+ */
 export interface LogEntry {
+  /** Unique identifier for the log entry */
   id: string;
+  /** ISO timestamp when the log was recorded */
   timestamp: string;
+  /** Log severity level */
   level: LogLevel;
+  /** The log message content */
   message: string;
+  /** Output stream source (stdout or stderr) */
   source: "stdout" | "stderr";
+  /** Associated session ID if the log relates to a specific session */
   sessionId?: string;
 }
 
+/**
+ * Container runtime information.
+ */
 export interface ContainerInfo {
+  /** Unique container identifier */
   id: string;
+  /** Human-readable container name */
   name: string;
+  /** Current container status (e.g., 'running', 'stopped', 'exited') */
   status: string;
 }
 
+/**
+ * Filter criteria for querying log entries.
+ */
 export interface LogsFilter {
+  /** Array of log levels to include */
   levels: LogLevel[];
+  /** Search string to filter log messages */
   search: string;
 }
 
+/**
+ * Options for exporting logs in various formats.
+ */
 export interface LogsExportOptions {
+  /** Output format for the exported logs */
   format: "json" | "text" | "csv";
+  /** Filter criteria to apply to the export */
   filter: LogsFilter;
 }

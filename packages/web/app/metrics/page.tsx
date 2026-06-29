@@ -123,7 +123,7 @@ export default async function MetricsPage() {
               <div className="rounded-lg border p-4">
                 <div className="text-sm text-muted-foreground">Total Requests</div>
                 <div className="text-2xl font-bold">
-                  {metrics.providers.reduce((sum, p) => sum + p.requestCount, 0)}
+                  {formatNumber(metrics.providers.reduce((sum, p) => sum + p.requestCount, 0))}
                 </div>
               </div>
               <div className="rounded-lg border p-4">
@@ -176,7 +176,7 @@ export default async function MetricsPage() {
                   >
                     <span className="font-medium">{provider.provider}</span>
                     <div className="text-right text-sm">
-                      <div>{provider.requestCount} requests</div>
+                      <div>{formatNumber(provider.requestCount)} requests</div>
                       <div className="text-muted-foreground">
                         {formatNumber(provider.totalInputTokens)} in,{" "}
                         {formatNumber(provider.totalOutputTokens)} out

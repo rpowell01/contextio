@@ -274,9 +274,11 @@ export async function GET(request: Request) {
           }
         }
 
-        // Apply date filters
-        if (fromDate && new Date(capture.timestamp) < fromDate) continue;
-        if (toDate && new Date(capture.timestamp) > toDate) continue;
+        // Apply date filters - skip records with invalid timestamps
+        const captureDate = new Date(capture.timestamp);
+        if (isNaN(captureDate.getTime())) continue;
+        if (fromDate && captureDate < fromDate) continue;
+        if (toDate && captureDate > toDate) continue;
 
         // Apply other filters
         if (sessionId && capture.sessionId !== sessionId) continue;
