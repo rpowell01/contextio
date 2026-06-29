@@ -5,8 +5,13 @@ WORKDIR /app
 # Copy root package files for pnpm install
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 
-# Copy web package.json before install (needed for web dependencies)
+# Copy all package.json files for workspace resolution
+COPY packages/core/package.json packages/core/package.json
+COPY packages/proxy/package.json packages/proxy/package.json
+COPY packages/logger/package.json packages/logger/package.json
+COPY packages/redact/package.json packages/redact/package.json
 COPY packages/web/package.json packages/web/package.json
+COPY packages/cli/package.json packages/cli/package.json
 
 # Enable corepack and install dependencies
 RUN corepack enable && pnpm install --frozen-lockfile
@@ -59,19 +64,20 @@ ENV CONTEXT_PROXY_PLUGINS=/app/logger-plugin.js,/app/redact-plugin.js
 ENV LOG_TRAFFIC=false
 ENV DEBUG_ROUTING=false
 
-COPY --from=build /app/packages/proxy/dist ./dist
-COPY --from=build /app/packages/proxy/package.json ./package.json
-COPY --from=build /app/packages/core/package.json ./node_modules/@contextio/core/package.json
-COPY --from=build /app/packages/core/dist ./node_modules/@contextio/core/dist
-COPY --from=build /app/packages/logger/package.json ./node_modules/@contextio/logger/package.json
-COPY --from=build /app/packages/logger/dist ./node_modules/@contextio/logger/dist
-COPY --from=build /app/packages/redact/package.json ./node_modules/@contextio/redact/package.json
-COPY --from=build /app/packages/redact/dist ./node_modules/@contextio/redact/dist
+# Enable corepack for pnpm in runtime
+RUN corepack enable
 
+# Copy node_modules and packages directory (symlinks in node_modules point here)
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages ./packages
+
+# Copy proxy dist to root for server entry
+COPY --from=build /app/packages/proxy/dist ./dist
+
+# Copy web standalone
 COPY --from=build /app/packages/web/.next/standalone ./web
 COPY --from=build /app/packages/web/.next/static ./web/.next/static
 COPY --from=build /app/packages/web/package.json ./web/package.json
-COPY --from=build /app/packages/web/node_modules ./web/node_modules
 
 # ✅ FIXED: Proper JS (no HTML escaping)
 RUN printf '%s\n' \
@@ -89,10 +95,6 @@ printf '%s\n' \
 'export default () => createRedactPlugin(config);' \
 > /app/redact-plugin.js
 
-USER node
-EXPOSE 4040
-EXPOSE 4041
-
 # Create a startup script that runs both proxy and web server
 RUN printf '%s\n' \
 '#!/bin/sh' \
@@ -101,5 +103,12 @@ RUN printf '%s\n' \
 'echo "Starting ContextIO Web UI on port 4041..."' \
 'cd web && NEXT_PUBLIC_API_URL=http://localhost:4040 pnpm start -- -p 4041' \
 > /app/start.sh && chmod +x /app/start.sh
+
+# Fix permissions for node user (after all files are created)
+RUN chown -R node:node /app
+
+USER node
+EXPOSE 4040
+EXPOSE 4041
 
 CMD ["/app/start.sh"]
