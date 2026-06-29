@@ -1,5 +1,5 @@
 import { MainLayout } from "@/components/main-layout";
-import { formatDate } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import type { Session } from "@/types/api";
 import Link from "next/link";
 
@@ -71,7 +71,7 @@ export default async function SessionsPage() {
                   <div>
                     <div className="font-medium">{session.source} → {session.provider}</div>
                     <div className="text-sm text-muted-foreground">
-                      Status: {session.responseStatus} • {formatDate(session.timestamp)}
+                      Status: {session.responseStatus} • {formatDateTime(session.timestamp)}
                     </div>
                   </div>
                 </div>

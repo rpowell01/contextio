@@ -2,7 +2,7 @@
 
 import { MainLayout } from "@/components/main-layout";
 import { apiClient } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import type { Capture, CaptureWithRedaction, PaginationMeta } from "@/types/api";
 import { useState, useEffect, useCallback } from "react";
 
@@ -351,7 +351,7 @@ export default function CapturesPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-mono">#{capture.sessionId?.slice(0, 8) ?? "N/A"}</div>
-                  <div className="text-xs text-muted-foreground">{formatDate(capture.timestamp)}</div>
+                  <div className="text-xs text-muted-foreground">{formatDateTime(capture.timestamp)}</div>
                 </div>
               </div>
             ))}

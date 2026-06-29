@@ -6,7 +6,7 @@ export function cn(...inputs: (string | boolean | undefined)[]): string {
   return twMerge(clsx(inputs.filter(Boolean)));
 }
 
-export function formatDate(date: string | Date): string {
+export function formatDateTime(date: string | Date): string {
   const d = new Date(date);
   return d.toLocaleDateString("en-US", {
     year: "numeric",
