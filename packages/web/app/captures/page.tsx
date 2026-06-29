@@ -4,7 +4,7 @@ import { MainLayout } from "@/components/main-layout";
 import { apiClient } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import type { Capture, CaptureWithRedaction, PaginationMeta } from "@/types/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -17,12 +17,60 @@ interface CaptureFilters {
   redactionType: string;
 }
 
+interface PaginationPage {
+  page: number;
+  isEllipsis?: boolean;
+}
+
+/**
+ * Generates an array of pages to display in pagination controls.
+ * Includes ellipsis indicators for skipped page ranges.
+ */
+function generatePaginationPages(
+  current_page: number,
+  total_pages: number
+): PaginationPage[] {
+  const pages: PaginationPage[] = [];
+  const maxVisiblePages = 5;
+
+  if (total_pages <= maxVisiblePages) {
+    // Show all pages
+    for (let i = 1; i <= total_pages; i++) {
+      pages.push({ page: i });
+    }
+  } else {
+    // Always show first page
+    pages.push({ page: 1 });
+
+    if (current_page <= 3) {
+      // Near the beginning - show pages 2, 3 then ellipsis then last pages
+      pages.push({ page: 2 }, { page: 3 });
+      pages.push({ page: -1, isEllipsis: true } as const);
+      pages.push({ page: total_pages - 1 }, { page: total_pages });
+    } else if (current_page >= total_pages - 2) {
+      // Near the end - show first two pages, ellipsis, then last three pages
+      pages.push({ page: 2 });
+      pages.push({ page: -1, isEllipsis: true } as const);
+      pages.push({ page: total_pages - 2 }, { page: total_pages - 1 }, { page: total_pages });
+    } else {
+      // In the middle - show ellipsis, current-1, current, current+1, ellipsis, last page
+      pages.push({ page: -1, isEllipsis: true } as const);
+      pages.push({ page: current_page - 1 });
+      pages.push({ page: current_page });
+      pages.push({ page: current_page + 1 });
+      pages.push({ page: -1, isEllipsis: true } as const);
+      pages.push({ page: total_pages });
+    }
+  }
+
+  return pages;
+}
+
 export default function CapturesPage() {
   const [captures, setCaptures] = useState<(Capture | CaptureWithRedaction)[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [filters, setFilters] = useState<CaptureFilters>({
     sessionId: "",
@@ -33,7 +81,7 @@ export default function CapturesPage() {
     redactionType: "",
   });
 
-  const fetchCaptures = async (page: number = currentPage, pageSizeParam: number = pageSize) => {
+  const fetchCaptures = useCallback(async (page: number, pageSizeParam: number) => {
     setLoading(true);
     setError(null);
     try {
@@ -54,11 +102,11 @@ export default function CapturesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
-    fetchCaptures();
-  }, []);
+    fetchCaptures(1, pageSize);
+  }, [fetchCaptures, pageSize]);
 
   const handleFilterChange = (key: keyof CaptureFilters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -73,14 +121,12 @@ export default function CapturesPage() {
       to: "",
       redactionType: "",
     });
-    setCurrentPage(1);
-    fetchCaptures(1, pageSize);
+    // fetchCaptures will be called by useEffect when filters change
   };
 
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
 
   const handleApplyFilters = () => {
-    setCurrentPage(1);
     fetchCaptures(1, pageSize);
   };
 
@@ -105,8 +151,7 @@ export default function CapturesPage() {
                 onChange={(e) => {
                   const newPageSize = parseInt(e.target.value, 10);
                   setPageSize(newPageSize);
-                  setCurrentPage(1);
-                  fetchCaptures(1, newPageSize);
+                  // fetchCaptures will be called by useEffect when pageSize changes
                 }}
                 className="rounded border border-input bg-background px-2 py-1 text-sm"
               >
@@ -239,7 +284,7 @@ export default function CapturesPage() {
           <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
             <p className="text-destructive">Error: {error}</p>
             <button
-              onClick={fetchCaptures}
+              onClick={() => fetchCaptures(pagination?.page ?? 1, pageSize)}
               className="mt-2 text-sm underline hover:no-underline"
             >
               Try again
@@ -321,29 +366,64 @@ export default function CapturesPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => {
-                  const newPage = Math.max(1, (pagination.page ?? 1) - 1);
-                  setCurrentPage(newPage);
-                  fetchCaptures(newPage, pageSize);
-                }}
-                disabled={(pagination.page ?? 1) <= 1}
+                onClick={() => fetchCaptures(1, pageSize)}
+                disabled={pagination.page <= 1}
                 className="rounded px-3 py-1 text-sm border border-input bg-background hover:bg-accent disabled:opacity-50"
+                aria-label="First page"
+                title="First page"
               >
-                Previous
+                <span aria-hidden="true">««</span>
               </button>
-              <span className="text-sm text-muted-foreground">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
               <button
-                onClick={() => {
-                  const newPage = (pagination.page ?? 1) + 1;
-                  setCurrentPage(newPage);
-                  fetchCaptures(newPage, pageSize);
-                }}
-                disabled={(pagination.page ?? 1) >= pagination.totalPages}
+                onClick={() => fetchCaptures(Math.max(1, pagination.page - 1), pageSize)}
+                disabled={pagination.page <= 1}
                 className="rounded px-3 py-1 text-sm border border-input bg-background hover:bg-accent disabled:opacity-50"
+                aria-label="Previous page"
+                title="Previous page"
               >
-                Next
+                <span aria-hidden="true">«</span>
+              </button>
+              {generatePaginationPages(pagination.page, pagination.totalPages).map((p, index) => {
+                if (p.isEllipsis) {
+                  return (
+                    <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground" aria-hidden="true">
+                      ...
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={p.page}
+                    onClick={() => fetchCaptures(p.page, pageSize)}
+                    className={`rounded px-3 py-1 text-sm border transition-colors ${
+                      p.page === pagination.page
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-input bg-background hover:bg-accent"
+                    }`}
+                    aria-current={p.page === pagination.page ? "page" : undefined}
+                    aria-label={`Page ${p.page}`}
+                  >
+                    {p.page}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => fetchCaptures(Math.min(pagination.totalPages, pagination.page + 1), pageSize)}
+                disabled={pagination.page >= pagination.totalPages}
+                className="rounded px-3 py-1 text-sm border border-input bg-background hover:bg-accent disabled:opacity-50"
+                aria-label="Next page"
+                title="Next page"
+              >
+                <span aria-hidden="true">»</span>
+              </button>
+              <button
+                onClick={() => fetchCaptures(pagination.totalPages, pageSize)}
+                disabled={pagination.page >= pagination.totalPages}
+                className="rounded px-3 py-1 text-sm border border-input bg-background hover:bg-accent disabled:opacity-50"
+                aria-label="Last page"
+                title="Last page"
+              >
+                <span aria-hidden="true">»»</span>
               </button>
             </div>
           </div>
