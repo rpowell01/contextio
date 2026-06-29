@@ -47,7 +47,7 @@ export function formatNumber(num: number): string {
   return num.toLocaleString();
 }
 
-export function safeJsonStringify(obj: unknown): string {
+export function safeJsonStringify(obj: unknown, spaces?: number): string {
   try {
     const seen = new WeakSet();
     return JSON.stringify(obj, (key, value) => {
@@ -58,7 +58,7 @@ export function safeJsonStringify(obj: unknown): string {
         seen.add(value);
       }
       return value;
-    });
+    }, spaces);
   } catch {
     return String(obj);
   }

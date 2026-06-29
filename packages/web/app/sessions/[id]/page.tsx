@@ -96,7 +96,7 @@ export default async function SessionDetailPage({
         <div className="rounded-lg border p-4">
           <h3 className="font-semibold mb-3">Request Body</h3>
           <pre className="rounded bg-muted p-4 text-xs overflow-x-auto">
-            {JSON.stringify(session.requestBody, null, 2)}
+            {safeJsonStringify(session.requestBody, 2)}
           </pre>
         </div>
 

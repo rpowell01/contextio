@@ -14,6 +14,25 @@ function extractCaptureMetadata(filename: string, data: Record<string, unknown>)
   // Extract session ID from filename
   const sessionId = extractSessionId(filename);
 
+  // Extract and convert numeric fields
+  const requestBytes = typeof data.requestBytes === "number" ? data.requestBytes : Number(data.requestBytes) || 0;
+  const responseBytes = typeof data.responseBytes === "number" ? data.responseBytes : Number(data.responseBytes) || 0;
+  const responseStatus = typeof data.responseStatus === "number" ? data.responseStatus : Number(data.responseStatus) || 0;
+
+  // Extract and convert boolean field
+  const responseIsStreaming = typeof data.responseIsStreaming === "boolean"
+    ? data.responseIsStreaming
+    : data.responseIsStreaming === true || data.responseIsStreaming === "true";
+
+  // Extract and convert timings subfields
+  const rawTimings = (data.timings && typeof data.timings === "object") ? data.timings as Record<string, unknown> : {};
+  const timings = {
+    send_ms: typeof rawTimings.send_ms === "number" ? rawTimings.send_ms : Number(rawTimings.send_ms) || 0,
+    wait_ms: typeof rawTimings.wait_ms === "number" ? rawTimings.wait_ms : Number(rawTimings.wait_ms) || 0,
+    receive_ms: typeof rawTimings.receive_ms === "number" ? rawTimings.receive_ms : Number(rawTimings.receive_ms) || 0,
+    total_ms: typeof rawTimings.total_ms === "number" ? rawTimings.total_ms : Number(rawTimings.total_ms) || 0,
+  };
+
   return {
     id: filename,
     sessionId,
@@ -22,12 +41,12 @@ function extractCaptureMetadata(filename: string, data: Record<string, unknown>)
     apiFormat: data.apiFormat ?? "unknown",
     targetUrl: data.targetUrl ?? "",
     method: data.method ?? "POST",
-    requestBytes: data.requestBytes ?? 0,
-    responseBytes: data.responseBytes ?? 0,
-    responseStatus: data.responseStatus ?? 0,
-    responseIsStreaming: data.responseIsStreaming ?? false,
+    requestBytes,
+    responseBytes,
+    responseStatus,
+    responseIsStreaming,
     timestamp: data.timestamp ?? new Date().toISOString(),
-    timings: data.timings ?? { send_ms: 0, wait_ms: 0, receive_ms: 0, total_ms: 0 },
+    timings,
   };
 }
 
