@@ -1,4 +1,5 @@
 import { MainLayout } from "@/components/main-layout";
+import { LogsViewer } from "@/components/logs-viewer";
 import { formatDate } from "@/lib/utils";
 import type { Session } from "@/types/api";
 import Link from "next/link";
@@ -90,6 +91,13 @@ export default async function SessionDetailPage({
             </pre>
           </div>
         )}
+
+        <div className="rounded-lg border p-4">
+          <h3 className="font-semibold mb-3">Container Logs</h3>
+          <div className="h-96">
+            <LogsViewer containerId={session.sessionId} sessionId={session.sessionId} />
+          </div>
+        </div>
       </div>
     </MainLayout>
   );

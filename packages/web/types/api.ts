@@ -78,3 +78,32 @@ export interface ContainerEnvVar {
   value: string;
   source?: string;
 }
+
+// --- Container Logs ---
+
+export type LogLevel = "error" | "warn" | "info" | "debug";
+
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  source: "stdout" | "stderr";
+  sessionId?: string;
+}
+
+export interface ContainerInfo {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export interface LogsFilter {
+  levels: LogLevel[];
+  search: string;
+}
+
+export interface LogsExportOptions {
+  format: "json" | "text" | "csv";
+  filter: LogsFilter;
+}

@@ -1,8 +1,8 @@
-import { type ClassValue } from "class-variance-authority";
+import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(inputs.join(" "));
+export function cn(...inputs: (string | undefined)[]) {
+  return twMerge(clsx(inputs));
 }
 
 export function formatDate(date: string | Date): string {
