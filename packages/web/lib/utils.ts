@@ -1,8 +1,9 @@
 import { clsx } from "clsx";
+import type { MetricsData, Session } from "@/types/api";
 import { twMerge } from "tailwind-merge";
 
-export function cn(...inputs: (string | undefined)[]) {
-  return twMerge(clsx(inputs));
+export function cn(...inputs: (string | boolean | undefined)[]): string {
+  return twMerge(clsx(inputs.filter(Boolean)));
 }
 
 export function formatDate(date: string | Date): string {
@@ -32,4 +33,63 @@ export function formatDuration(ms: number): string {
     return `${minutes}m ${seconds % 60}s`;
   }
   return `${seconds}s`;
+}
+
+export function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+export function formatNumber(num: number): string {
+  return num.toLocaleString();
+}
+
+export function safeJsonStringify(obj: unknown): string {
+  try {
+    const seen = new WeakSet();
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === "object" && value !== null) {
+        if (seen.has(value)) {
+          return "[Circular]";
+        }
+        seen.add(value);
+      }
+      return value;
+    });
+  } catch {
+    return String(obj);
+  }
+}
+
+// Type guards for API response validation
+export function isValidSession(data: unknown): data is Session {
+  if (!data || typeof data !== "object") return false;
+  const session = data as Record<string, unknown>;
+  return (
+    typeof session.sessionId === "string" &&
+    typeof session.source === "string" &&
+    typeof session.provider === "string" &&
+    typeof session.targetUrl === "string" &&
+    typeof session.timestamp === "string" &&
+    typeof session.responseStatus === "number" &&
+    typeof session.responseIsStreaming === "boolean" &&
+    (session.requestBody === null || typeof session.requestBody === "object")
+  );
+}
+
+export function isValidMetricsData(data: unknown): data is MetricsData {
+  if (!data || typeof data !== "object") return false;
+  const metrics = data as Record<string, unknown>;
+  return (
+    typeof metrics.totalInputTokens === "number" &&
+    typeof metrics.totalOutputTokens === "number" &&
+    typeof metrics.totalRequestBytes === "number" &&
+    typeof metrics.totalResponseBytes === "number" &&
+    Array.isArray(metrics.providers) &&
+    Array.isArray(metrics.redactions) &&
+    Array.isArray(metrics.traffic)
+  );
 }

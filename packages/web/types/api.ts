@@ -1,19 +1,53 @@
-export interface Session {
-  id: string;
+export type MetricsData = {
+  traffic: TrafficMetric[];
+  providers: ProviderUsage[];
+  redactions: RedactionMetric[];
+  totalRequestBytes: number;
+  totalResponseBytes: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+};
+
+export type ProviderUsage = {
+  provider: string;
+  requestCount: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+};
+
+export type RedactionMetric = {
+  timestamp: string;
+  count: number;
+};
+
+export type TimeRange = {
+  value: string;
+  label: string;
+  hours: number;
+};
+
+export type TrafficMetric = {
+  timestamp: string;
+  requestBytes: number;
+  responseBytes: number;
+};
+
+export type Session = {
   sessionId: string;
+  timestamp: string;
   source: string;
   provider: string;
-  apiFormat: string;
-  targetUrl: string;
-  requestBody: Record<string, unknown>;
-  responseStatus: number;
-  responseIsStreaming: boolean;
-  responseBody: string;
-  timestamp: string;
-  timings: {
-    total_ms: number;
-  };
-}
+  model: string;
+  targetUrl?: string;
+  requestBody?: unknown;
+  responseBody?: unknown;
+  responseStatus?: number;
+  responseIsStreaming?: boolean;
+  messages: Array<{
+    role: "system" | "user" | "assistant";
+    content: string;
+  }>;
+};
 
 export interface SessionStats {
   sessionId: string;
