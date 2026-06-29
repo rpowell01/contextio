@@ -15,8 +15,10 @@ COPY packages/cli/package.json packages/cli/package.json
 
 # Enable corepack and install dependencies
 # Set PNPM_MINIMUM_RELEASE_AGE=0 to allow newer packages in lockfile
+# Export PATH to include pnpm global bin directory
 RUN corepack enable && \
     pnpm config set minimum-release-age 0 --global && \
+    export PATH="$PATH:/root/.local/share/pnpm/bin" && \
     pnpm approve-builds sharp unrs-resolver && \
     pnpm install --frozen-lockfile
 
