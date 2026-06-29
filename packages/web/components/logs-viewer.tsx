@@ -132,7 +132,7 @@ export function LogsViewer({ containerId = "demo-container", sessionId }: LogsVi
       );
     }
     return true;
-  }), [logs, filter]);
+  }), [logs, filter.levels, filter.search]);
 
 
   return (
