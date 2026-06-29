@@ -3,6 +3,41 @@ import type { Session, ProxyStatus, SessionStats, Capture, CaptureWithRedaction,
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4040";
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 
+interface RetryConfig {
+  maxRetries: number;
+  initialDelay: number;
+  maxDelay: number;
+  backoffFactor: number;
+}
+
+const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 3,
+  initialDelay: 300,
+  maxDelay: 10000,
+  backoffFactor: 2,
+};
+
+/**
+ * Determines if an error is transient and should be retried.
+ */
+function isTransientError(error: unknown, status?: number): boolean {
+  if (status) {
+    return status === 429 || (status >= 500 && status < 600);
+  }
+  if (error instanceof Error) {
+    // Network errors and timeouts are transient, but AbortError is intentional cancellation
+    return error.message.includes("timeout") || error.message.includes("Network error");
+  }
+  return false;
+}
+
+/**
+ * Sleeps for a specified duration in milliseconds.
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 class APIClient {
   /**
    * Combines multiple AbortSignals into a single signal.
@@ -31,51 +66,94 @@ class APIClient {
     return controller.signal;
   }
 
-  private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+  private async request<T>(endpoint: string, options?: RequestInit, retryConfig: RetryConfig = DEFAULT_RETRY_CONFIG): Promise<T> {
+    let lastError: Error | undefined;
+    let retryDelay = retryConfig.initialDelay;
 
-    // Combine provided signal with timeout controller signal
-    const providedSignal = options?.signal;
-    const signal = providedSignal
-      ? this.combineSignals([providedSignal, controller.signal])
-      : controller.signal;
+    for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
 
-    try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        signal,
-        headers: {
-          "Content-Type": "application/json",
-          ...(options?.headers || {}),
-        },
-      });
+      // Combine provided signal with timeout controller signal
+      const providedSignal = options?.signal;
+      const signal = providedSignal
+        ? this.combineSignals([providedSignal, controller.signal])
+        : controller.signal;
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        let errorMessage = response.statusText;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || response.statusText;
-        } catch {
-          // Response body is not JSON or empty
-        }
-        throw new Error(`API request failed: ${response.status} ${errorMessage}`);
+      // Check if already aborted before making request
+      if (signal.aborted) {
+        clearTimeout(timeoutId);
+        throw new Error("Request aborted");
       }
 
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error instanceof Error) {
-        if (error.name === "AbortError") {
-          throw new Error("Request timeout");
+      try {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          ...options,
+          signal,
+          headers: {
+            "Content-Type": "application/json",
+            ...(options?.headers || {}),
+          },
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          let errorMessage = response.statusText;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || response.statusText;
+          } catch {
+            // Response body is not JSON or empty
+          }
+          const error = new Error(`API request failed: ${response.status} ${errorMessage}`);
+          
+          // Check if we should retry for transient errors
+          if (attempt < retryConfig.maxRetries && isTransientError(error, response.status)) {
+            // Check signal before sleeping
+            if (signal.aborted) {
+              throw new Error("Request aborted");
+            }
+            // Add jitter to prevent thundering herd
+            const jitter = Math.random() * 100;
+            await sleep(retryDelay + jitter);
+            retryDelay = Math.min(retryDelay * retryConfig.backoffFactor, retryConfig.maxDelay);
+            lastError = error;
+            continue;
+          }
+          throw error;
         }
-        throw error;
+
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        
+        if (error instanceof Error) {
+          if (error.name === "AbortError") {
+            throw new Error("Request aborted");
+          }
+          
+          // Check if we should retry for transient network errors
+          if (attempt < retryConfig.maxRetries && isTransientError(error)) {
+            // Check signal before sleeping
+            if (signal.aborted) {
+              throw new Error("Request aborted");
+            }
+            // Add jitter to prevent thundering herd
+            const jitter = Math.random() * 100;
+            await sleep(retryDelay + jitter);
+            retryDelay = Math.min(retryDelay * retryConfig.backoffFactor, retryConfig.maxDelay);
+            lastError = error;
+            continue;
+          }
+          throw error;
+        }
+        throw new Error("Network error");
       }
-      throw new Error("Network error");
     }
+    
+    throw lastError || new Error("Request failed");
   }
 
   async getSessions(): Promise<Session[]> {

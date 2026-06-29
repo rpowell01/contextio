@@ -1,12 +1,17 @@
 import { useState } from "react";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
 import { formatBytes } from "@/lib/utils";
 import type { TrafficMetric } from "@/types/api";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  Legend,
+  LabelList,
+  Tooltip,
+} from "recharts";
 import { Copy } from "lucide-react";
 
 interface TrafficChartProps {
@@ -36,7 +41,7 @@ export function TrafficChart({ data }: TrafficChartProps) {
   };
 
   return (
-    <ChartContainer config={{ request: { color: "#3b82f6" }, response: { color: "#10b981" } }}>
+    <div className="w-full">
       <div className="flex justify-end mb-2">
         <button
           onClick={copyToClipboard}
@@ -49,15 +54,52 @@ export function TrafficChart({ data }: TrafficChartProps) {
         </button>
       </div>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData}>
+        <BarChart
+          data={chartData}
+          aria-label="Traffic metrics showing request and response bytes over time"
+        >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="timestamp" />
           <YAxis />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <Bar dataKey="requestBytes" name="Request Bytes" fill="#3b82f6" />
-          <Bar dataKey="responseBytes" name="Response Bytes" fill="#10b981" />
+          <Tooltip
+            formatter={(value: number) => formatBytes(value)}
+            labelFormatter={(label) => `Date: ${label}`}
+          />
+          <Legend verticalAlign="top" align="center" />
+          <Bar
+            dataKey="requestBytes"
+            name="Request Bytes"
+            fill="#3b82f6"
+            stroke="#1d4ed8"
+            strokeDasharray="4 4"
+            strokeWidth={1}
+            opacity={0.85}
+            radius={[4, 4, 0, 0]}
+          >
+            <LabelList
+              position="top"
+              formatter={(value: number) => formatBytes(value)}
+              style={{ fontSize: 10, fill: "#333" }}
+            />
+          </Bar>
+          <Bar
+            dataKey="responseBytes"
+            name="Response Bytes"
+            fill="#10b981"
+            stroke="#059669"
+            strokeDasharray="8 2"
+            strokeWidth={1}
+            opacity={0.85}
+            radius={[4, 4, 0, 0]}
+          >
+            <LabelList
+              position="top"
+              formatter={(value: number) => formatBytes(value)}
+              style={{ fontSize: 10, fill: "#333" }}
+            />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </ChartContainer>
+    </div>
   );
 }

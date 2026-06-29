@@ -34,7 +34,11 @@ export interface Session {
   timestamp: string;
   /** Timing information in milliseconds */
   timings: {
-    /** Total time in milliseconds for the session */
+    /**
+     * Total duration in milliseconds for the entire API session.
+     * Represents the complete elapsed time from session initiation to completion,
+     * including request preparation, network latency, API processing, and response handling.
+     */
     total_ms: number;
   };
 }
