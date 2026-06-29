@@ -53,19 +53,52 @@ export function TrafficChart({ data }: TrafficChartProps) {
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
+      <div id="traffic-chart-description" className="sr-only">
+        Bar chart displaying request and response bytes over time. Each bar represents a time period
+        with blue indicating request bytes and green indicating response bytes.
+      </div>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart
           data={chartData}
-          aria-label="Traffic metrics showing request and response bytes over time"
+          aria-labelledby="traffic-chart-description"
+          role="img"
         >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="timestamp" />
-          <YAxis />
+          <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
+          <XAxis
+            dataKey="timestamp"
+            label={{
+              value: "Date",
+              position: "outsideBottom",
+              style: { textAnchor: "middle", fill: "#333" },
+            }}
+            tick={{ fill: "#333", fontSize: 12 }}
+            tickLine={{ stroke: "#666" }}
+            axisLine={{ stroke: "#666" }}
+          />
+          <YAxis
+            label={{
+              value: "Bytes",
+              angle: -90,
+              position: "outsideLeft",
+              style: { textAnchor: "middle", fill: "#333" },
+            }}
+            tick={{ fill: "#333", fontSize: 12 }}
+            tickLine={{ stroke: "#666" }}
+            axisLine={{ stroke: "#666" }}
+          />
           <Tooltip
             formatter={(value: number) => formatBytes(value)}
             labelFormatter={(label) => `Date: ${label}`}
+            contentStyle={{ backgroundColor: "rgba(255, 255, 255, 0.95)", border: "1px solid #ccc" }}
+            style={{ fontSize: 12 }}
+            cursor={{ fill: "rgba(0, 0, 0, 0.1)" }}
           />
-          <Legend verticalAlign="top" align="center" />
+          <Legend
+            verticalAlign="top"
+            align="center"
+            iconSize={12}
+            wrapperStyle={{ fontSize: 12, fontWeight: 500 }}
+          />
           <Bar
             dataKey="requestBytes"
             name="Request Bytes"
@@ -75,6 +108,7 @@ export function TrafficChart({ data }: TrafficChartProps) {
             strokeWidth={1}
             opacity={0.85}
             radius={[4, 4, 0, 0]}
+            aria-label="Request bytes"
           >
             <LabelList
               position="top"
@@ -91,6 +125,7 @@ export function TrafficChart({ data }: TrafficChartProps) {
             strokeWidth={1}
             opacity={0.85}
             radius={[4, 4, 0, 0]}
+            aria-label="Response bytes"
           >
             <LabelList
               position="top"
