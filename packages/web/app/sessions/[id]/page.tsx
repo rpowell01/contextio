@@ -1,6 +1,6 @@
 import { MainLayout } from "@/components/main-layout";
 import { LogsViewer } from "@/components/logs-viewer";
-import { formatDate, isValidSession, safeJsonStringify } from "@/lib/utils";
+import { formatDateTime, isValidSession, safeJsonStringify } from "@/lib/utils";
 import type { Session } from "@/types/api";
 import Link from "next/link";
 
@@ -92,7 +92,7 @@ export default async function SessionDetailPage({
                   </div>
                   <div>
                     <span className="text-muted-foreground">Timestamp:</span>{" "}
-                    {formatDate(session.timestamp)}
+                    {formatDateTime(session.timestamp)}
                   </div>
                 </div>
               </div>
