@@ -48,7 +48,7 @@ function LogLine({ log }: { log: LogEntry }) {
 }
 
 
-export function LogsViewer({ containerId = "demo-container", sessionId }: LogsViewerProps) {
+export function LogsViewer({ containerId = "demo-container" }: LogsViewerProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filter, setFilter] = useState<LogsFilter>({
     levels: LOG_LEVELS,

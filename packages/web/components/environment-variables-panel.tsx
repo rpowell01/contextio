@@ -4,7 +4,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { RefreshCw, Download, Search } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import type { ContainerEnvVar } from "@/types/api";
 

@@ -58,7 +58,7 @@ class ContainerLogsService {
     });
   }
 
-  getLogs(containerId: string, filter?: { levels?: LogLevel[]; search?: string }): LogEntry[] {
+  getLogs(_containerId: string, filter?: { levels?: LogLevel[]; search?: string }): LogEntry[] {
     let filtered = [...this.logs];
 
     if (filter?.levels && filter.levels.length > 0) {
@@ -77,7 +77,7 @@ class ContainerLogsService {
     return filtered;
   }
 
-  clearLogs(containerId: string): void {
+  clearLogs(_containerId: string): void {
     // In a real implementation, this would clear logs for the specific container
     this.logs = [];
   }

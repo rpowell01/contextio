@@ -90,7 +90,6 @@ export function TrafficChart({ data }: TrafficChartProps) {
             formatter={(value: number) => formatBytes(value)}
             labelFormatter={(label) => `Date: ${label}`}
             contentStyle={{ backgroundColor: "rgba(255, 255, 255, 0.95)", border: "1px solid #ccc" }}
-            style={{ fontSize: 12 }}
             cursor={{ fill: "rgba(0, 0, 0, 0.1)" }}
           />
           <Legend
@@ -113,7 +112,6 @@ export function TrafficChart({ data }: TrafficChartProps) {
             <LabelList
               position="top"
               formatter={(value: number) => formatBytes(value)}
-              style={{ fontSize: 10, fill: "#333" }}
             />
           </Bar>
           <Bar
@@ -130,7 +128,6 @@ export function TrafficChart({ data }: TrafficChartProps) {
             <LabelList
               position="top"
               formatter={(value: number) => formatBytes(value)}
-              style={{ fontSize: 10, fill: "#333" }}
             />
           </Bar>
         </BarChart>

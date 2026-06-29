@@ -131,7 +131,7 @@ export default async function SessionDetailPage({
             <div className="rounded-lg border p-4">
               <h3 className="font-semibold mb-3">Container Logs</h3>
               <div className="h-96">
-                <LogsViewer containerId={session.sessionId} sessionId={session.sessionId} />
+                <LogsViewer containerId={session.sessionId} />
               </div>
             </div>
           </>

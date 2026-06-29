@@ -29,7 +29,7 @@ export function Header({ navigationConfig }: HeaderProps) {
           <span className="font-bold">ContextIO</span>
         </div>
         <nav className="flex items-center space-x-2">
-          {navigation.map((item, index) => {
+          {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link

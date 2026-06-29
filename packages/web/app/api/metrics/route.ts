@@ -148,7 +148,7 @@ function aggregateMetrics(
   };
 }
 
-export async function GET(request: Request): Promise<Response> {
+export async function GET(_request: Request): Promise<Response> {
   try {
     const files = await listCaptureFiles();
     const captures: Array<{

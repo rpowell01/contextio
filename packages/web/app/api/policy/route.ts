@@ -5,12 +5,13 @@ import type { RedactionPolicy } from "@/types/api";
 // Default policy
 const defaultPolicy: RedactionPolicy = {
   extends: "secrets",
+  rules: [],
 };
 
 // In-memory storage (in production, this would be a database or file)
 let storedPolicy: RedactionPolicy = { ...defaultPolicy };
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     return NextResponse.json(storedPolicy);
   } catch (error) {

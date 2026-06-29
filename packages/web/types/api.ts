@@ -103,13 +103,19 @@ export interface ProxyStatus {
  */
 export interface RedactionPolicy {
   /** Unique policy identifier */
-  id: string;
+  id?: string;
   /** Human-readable policy name */
-  name: string;
+  name?: string;
   /** Description of the policy's purpose */
-  description: string;
+  description?: string;
+  /** Base policy to extend (e.g., 'secrets') */
+  extends?: string;
   /** Array of redaction rules */
-  rules: RedactionRule[];
+  rules?: RedactionRule[];
+  /** Allowlist patterns */
+  allowlist?: Allowlist;
+  /** Path filtering configuration */
+  paths?: Paths;
 }
 
 /**
