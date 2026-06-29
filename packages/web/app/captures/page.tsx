@@ -8,6 +8,15 @@ import { useState, useEffect } from "react";
 
 const DEFAULT_PAGE_SIZE = 20;
 
+interface CaptureFilters {
+  sessionId: string;
+  source: string;
+  status: string;
+  from: string;
+  to: string;
+  redactionType: string;
+}
+
 export default function CapturesPage() {
   const [captures, setCaptures] = useState<(Capture | CaptureWithRedaction)[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
@@ -15,12 +24,29 @@ export default function CapturesPage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [filters, setFilters] = useState<CaptureFilters>({
+    sessionId: "",
+    source: "",
+    status: "",
+    from: "",
+    to: "",
+    redactionType: "",
+  });
 
   const fetchCaptures = async (page: number = currentPage, pageSizeParam: number = pageSize) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.getCaptures({ page, pageSize: pageSizeParam });
+      const response = await apiClient.getCaptures({
+        page,
+        pageSize: pageSizeParam,
+        sessionId: filters.sessionId || undefined,
+        source: filters.source || undefined,
+        status: filters.status || undefined,
+        from: filters.from || undefined,
+        to: filters.to || undefined,
+        redactionType: filters.redactionType || undefined,
+      });
       setCaptures(response.data);
       setPagination(response.pagination ?? null);
     } catch (e) {
@@ -33,6 +59,30 @@ export default function CapturesPage() {
   useEffect(() => {
     fetchCaptures();
   }, []);
+
+  const handleFilterChange = (key: keyof CaptureFilters, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      sessionId: "",
+      source: "",
+      status: "",
+      from: "",
+      to: "",
+      redactionType: "",
+    });
+    setCurrentPage(1);
+    fetchCaptures(1, pageSize);
+  };
+
+  const hasActiveFilters = Object.values(filters).some((v) => v !== "");
+
+  const handleApplyFilters = () => {
+    setCurrentPage(1);
+    fetchCaptures(1, pageSize);
+  };
 
   return (
     <MainLayout>
@@ -66,6 +116,122 @@ export default function CapturesPage() {
                 <option value={100}>100</option>
               </select>
             </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="rounded-lg border p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Filters</h2>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-sm text-muted-foreground hover:text-foreground underline"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <label htmlFor="sessionId" className="block text-sm font-medium mb-1">
+                Session ID
+              </label>
+              <input
+                id="sessionId"
+                type="text"
+                placeholder="Enter session ID..."
+                value={filters.sessionId}
+                onChange={(e) => handleFilterChange("sessionId", e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="source" className="block text-sm font-medium mb-1">
+                Source
+              </label>
+              <input
+                id="source"
+                type="text"
+                placeholder="Enter source..."
+                value={filters.source}
+                onChange={(e) => handleFilterChange("source", e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium mb-1">
+                Status
+              </label>
+              <select
+                id="status"
+                value={filters.status}
+                onChange={(e) => handleFilterChange("status", e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">All statuses</option>
+                <option value="200">200</option>
+                <option value="201">201</option>
+                <option value="400">400</option>
+                <option value="401">401</option>
+                <option value="403">403</option>
+                <option value="404">404</option>
+                <option value="500">500</option>
+                <option value="502">502</option>
+                <option value="503">503</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="from" className="block text-sm font-medium mb-1">
+                From Date
+              </label>
+              <input
+                id="from"
+                type="date"
+                value={filters.from}
+                onChange={(e) => handleFilterChange("from", e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="to" className="block text-sm font-medium mb-1">
+                To Date
+              </label>
+              <input
+                id="to"
+                type="date"
+                value={filters.to}
+                onChange={(e) => handleFilterChange("to", e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="redactionType" className="block text-sm font-medium mb-1">
+                Redaction Type
+              </label>
+              <select
+                id="redactionType"
+                value={filters.redactionType}
+                onChange={(e) => handleFilterChange("redactionType", e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">All types</option>
+                <option value="email">Email</option>
+                <option value="api_key">API Key</option>
+                <option value="password">Password</option>
+                <option value="token">Token</option>
+                <option value="phone">Phone</option>
+                <option value="ssn">SSN</option>
+              </select>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={handleApplyFilters}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Apply Filters
+            </button>
           </div>
         </div>
 

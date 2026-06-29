@@ -8,10 +8,16 @@ class APIClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
 
+    // Combine provided signal with timeout controller signal
+    const providedSignal = options?.signal;
+    const signal = providedSignal
+      ? AbortSignal.any([providedSignal, controller.signal])
+      : controller.signal;
+
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
-        signal: controller.signal,
+        signal,
         headers: {
           "Content-Type": "application/json",
           ...(options?.headers || {}),
@@ -62,17 +68,11 @@ class APIClient {
   }
 
   async restartProxy(): Promise<{ success: boolean }> {
-    const response = await fetch(`${API_BASE_URL}/api/restart`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-    return response.json();
+    return this.request("/api/restart", { method: "POST" });
   }
 
   async getContainerEnvVars(containerId: string, signal?: AbortSignal): Promise<ContainerEnvVar[]> {
-    return this.request(`/api/containers/${containerId}/env`, signal);
+    return this.request(`/api/containers/${containerId}/env`, { signal });
   }
 
   // Logs API
@@ -85,9 +85,7 @@ class APIClient {
     if (filter?.search) {
       params.set("search", encodeURIComponent(filter.search));
     }
-    const response = await fetch(`${API_BASE_URL}/api/logs?${params.toString()}`);
-    if (!response.ok) throw new Error("Failed to fetch logs");
-    const data = await response.json();
+    const data = await this.request<{ logs: LogEntry[] }>(`/api/logs?${params.toString()}`);
     return data.logs;
   }
 
@@ -95,56 +93,70 @@ class APIClient {
     const params = new URLSearchParams();
     params.set("containerId", encodeURIComponent(containerId));
     params.set("stream", "true");
-    const response = await fetch(`${API_BASE_URL}/api/logs?${params.toString()}`);
-    if (!response.ok) throw new Error("Failed to stream logs");
-    
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error("No reader available");
-    
-    const decoder = new TextDecoder();
-    let buffer = "";
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+
     try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          // Process any remaining buffer content before exiting
-          if (buffer.trim()) {
-            try {
-              const log: LogEntry = JSON.parse(buffer.trim());
-              onChunk(log);
-            } catch {
-              // Skip malformed final line
+      const response = await fetch(`${API_BASE_URL}/api/logs?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("Failed to stream logs");
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No reader available");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            // Process any remaining buffer content before exiting
+            if (buffer.trim()) {
+              try {
+                const log: LogEntry = JSON.parse(buffer.trim());
+                onChunk(log);
+              } catch {
+                // Skip malformed final line
+              }
+            }
+            break;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          // Process complete lines, keep incomplete line in buffer
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || ""; // Keep the last (possibly incomplete) line
+          for (const line of lines) {
+            if (line.trim()) {
+              try {
+                const log: LogEntry = JSON.parse(line);
+                onChunk(log);
+              } catch {
+                // Skip malformed lines
+              }
             }
           }
-          break;
         }
-        buffer += decoder.decode(value, { stream: true });
-        // Process complete lines, keep incomplete line in buffer
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep the last (possibly incomplete) line
-        for (const line of lines) {
-          if (line.trim()) {
-            try {
-              const log: LogEntry = JSON.parse(line);
-              onChunk(log);
-            } catch {
-              // Skip malformed lines
-            }
-          }
-        }
+      } finally {
+        reader.releaseLock();
       }
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error("Request timeout");
+      }
+      throw error;
     } finally {
-      reader.releaseLock();
+      clearTimeout(timeoutId);
     }
   }
 
   async clearLogs(containerId: string): Promise<{ success: boolean }> {
-    const response = await fetch(`${API_BASE_URL}/api/logs`, {
+    return this.request("/api/logs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ containerId }),
     });
-    return response.json();
   }
 
   async exportLogs(containerId: string, format: "json" | "text" | "csv", filter: LogsFilter): Promise<string> {
