@@ -21,7 +21,7 @@ export interface Session {
   /** Whether the response is streaming */
   responseIsStreaming: boolean;
   /** Raw response body as string */
-  responseBody: string;
+  responseBody?: string | null;
   /** ISO timestamp of when the session was created */
   timestamp: string;
   /** Timing information in milliseconds */
