@@ -19,7 +19,7 @@ const PathsSchema = z.object({
 });
 
 export const policySchema = z.object({
-  extends: z.enum(["secrets", "pii", "strict"]).optional(),
+  extends: z.enum(["secrets", "pii", "strict"]),
   rules: z.array(RedactionRuleSchema).optional(),
   allowlist: AllowlistSchema.optional(),
   paths: PathsSchema.optional(),
