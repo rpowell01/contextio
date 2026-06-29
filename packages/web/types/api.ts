@@ -69,12 +69,12 @@ export interface ProviderConfig {
   models: string[];
 }
 
-export interface RedactionPolicy {
-  extends?: "secrets" | "pii" | "strict";
+export type RedactionPolicy = {
+  extends: "secrets" | "pii" | "strict";
   rules?: RedactionRule[];
   allowlist?: Allowlist;
   paths?: Paths;
-}
+};
 
 export interface RedactionRule {
   id: string;

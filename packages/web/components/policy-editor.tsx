@@ -80,18 +80,19 @@ export function PolicyEditor({ className }: PolicyEditorProps) {
   const validatePolicy = useCallback((content: string): { valid: boolean; data?: RedactionPolicy } => {
     try {
       const parsed = JSON.parse(content);
-      const errors: string[] = [];
 
       const result = policySchema.safeParse(parsed);
       if (!result.success) {
-        for (const detail of result.error.errors) {
+        const errors = result.error.errors.map((detail) => {
           const path = detail.path.length > 0 ? detail.path.join(".") : "root";
-          errors.push(`${path}: ${detail.message}`);
-        }
+          return `${path}: ${detail.message}`;
+        });
+        setValidationErrors(errors);
+        return { valid: false };
       }
 
-      setValidationErrors(errors);
-      return { valid: errors.length === 0, data: result.success ? result.data : undefined };
+      setValidationErrors([]);
+      return { valid: true, data: result.data };
     } catch (e) {
       setValidationErrors([`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`]);
       return { valid: false };

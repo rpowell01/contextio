@@ -1,8 +1,18 @@
 import { MainLayout } from "@/components/main-layout";
 import { LogsViewer } from "@/components/logs-viewer";
-import { formatDate } from "@/lib/utils";
+import { formatDate, isValidSession, safeJsonStringify } from "@/lib/utils";
 import type { Session } from "@/types/api";
 import Link from "next/link";
+
+function renderResponseBody(body: unknown): React.ReactNode {
+  if (typeof body === "string") {
+    return body;
+  }
+  if (body === null || body === undefined) {
+    return "{}";
+  }
+  return safeJsonStringify(body);
+}
 
 async function getSession(id: string): Promise<Session> {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4040";
@@ -12,7 +22,14 @@ async function getSession(id: string): Promise<Session> {
     throw new Error("Session not found");
   }
 
-  return res.json();
+  const data = await res.json();
+
+  // Validate the response
+  if (!isValidSession(data)) {
+    throw new Error("Invalid session data received from API");
+  }
+
+  return data;
 }
 
 export default async function SessionDetailPage({
@@ -83,11 +100,11 @@ export default async function SessionDetailPage({
           </pre>
         </div>
 
-        {session.responseBody && (
+        {session.responseBody !== undefined && session.responseBody !== null && (
           <div className="rounded-lg border p-4">
             <h3 className="font-semibold mb-3">Response Body</h3>
             <pre className="rounded bg-muted p-4 text-xs overflow-x-auto">
-              {session.responseBody}
+              {renderResponseBody(session.responseBody)}
             </pre>
           </div>
         )}

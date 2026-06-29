@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { policySchema } from "@/lib/schema";
+import type { RedactionPolicy } from "@/types/api";
 
 // Default policy
-const defaultPolicy = {
-  extends: "secrets" as const,
+const defaultPolicy: RedactionPolicy = {
+  extends: "secrets",
 };
 
 // In-memory storage (in production, this would be a database or file)
-let storedPolicy = { ...defaultPolicy };
+let storedPolicy: RedactionPolicy = { ...defaultPolicy };
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,8 +28,12 @@ export async function PUT(request: NextRequest) {
     // Validate the policy
     const result = policySchema.safeParse(body);
     if (!result.success) {
+      const errorDetails = result.error.errors.map((err) => ({
+        path: err.path.join("."),
+        message: err.message,
+      }));
       return NextResponse.json(
-        { error: "Invalid policy", details: result.error.errors },
+        { error: "Invalid policy", details: errorDetails },
         { status: 400 }
       );
     }
