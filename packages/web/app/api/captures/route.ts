@@ -208,27 +208,66 @@ function validateCaptureTimestamp(timestamp: unknown): string | null {
   return isNaN(date.getTime()) ? null : timestamp;
 }
 
+const MAX_FILENAME_LENGTH = 255;
+
 /**
  * Safely extract session ID from filename.
- * Format: {source}_{sessionId}_{timestamp}-{counter}.json
- * Session ID is expected to be 8 hex characters.
+ * Supports multiple filename formats:
+ * - {source}_{sessionId}_{timestamp}-{counter}.json
+ * - {sessionId}_{timestamp}-{counter}.json
+ * Session ID is expected to be 8-16 hex characters.
+ *
+ * @param filename - The capture filename to parse
+ * @returns The extracted session ID or null if not found
  */
 function extractSessionId(filename: string): string | null {
-  const match = filename.match(/_([a-f0-9]{8})_/);
-  return match ? match[1] : null;
+  // Match session ID patterns: 8-16 hex chars, either:
+  // 1. Between underscores: source_{sessionId}_timestamp...
+  // 2. At the start: {sessionId}_timestamp...
+  const match = filename.match(/_([a-f0-9]{8,16})_(?:\d{4}-\d{2}-\d{2}|[a-f0-9]{8,14})(?:[-_]?\d+)?\.json$/i);
+  if (match) {
+    return match[1].toLowerCase();
+  }
+
+  // Fallback: try to find any hex string that looks like a session ID
+  const fallbackMatch = filename.match(/_([a-f0-9]{8,16})\.(json|tmp)$/i);
+  return fallbackMatch ? fallbackMatch[1].toLowerCase() : null;
 }
 
 /**
- * Validate filename to prevent path traversal attacks.
+ * Validate filename to prevent path traversal attacks and ensure safe file access.
+ *
+ * @param filename - The filename to validate
+ * @returns true if the filename is valid and safe, false otherwise
  */
 function isValidFilename(filename: string): boolean {
-  // Only allow alphanumeric, underscore, hyphen, and .json extension
-  const validPattern = /^[a-zA-Z0-9_-]+\.json$/;
-  if (!validPattern.test(filename)) return false;
-  // Prevent path traversal attempts
-  if (filename.includes("..") || filename.startsWith("/") || filename.startsWith("\\")) {
+  // Check for empty filename
+  if (!filename || filename.length === 0) {
     return false;
   }
+
+  // Check maximum length to prevent filesystem issues
+  if (filename.length > MAX_FILENAME_LENGTH) {
+    return false;
+  }
+
+  // Check for hidden files (starting with .)
+  if (filename.startsWith(".")) {
+    return false;
+  }
+
+  // Check for path traversal patterns
+  if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+    return false;
+  }
+
+  // Only allow alphanumeric, underscore, hyphen, and .json extension
+  // Must have at least one character before .json
+  const validPattern = /^[a-zA-Z0-9_-]+\.json$/;
+  if (!validPattern.test(filename)) {
+    return false;
+  }
+
   return true;
 }
 

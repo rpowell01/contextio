@@ -20,15 +20,42 @@ async function listCaptureFiles(): Promise<string[]> {
   }
 }
 
+const MAX_FILENAME_LENGTH = 255;
+
 /**
- * Validate filename to prevent path traversal attacks.
+ * Validate filename to prevent path traversal attacks and ensure safe file access.
+ *
+ * @param filename - The filename to validate
+ * @returns true if the filename is valid and safe, false otherwise
  */
 function isValidFilename(filename: string): boolean {
-  const validPattern = /^[a-zA-Z0-9_-]+\.json$/;
-  if (!validPattern.test(filename)) return false;
-  if (filename.includes("..") || filename.startsWith("/") || filename.startsWith("\\")) {
+  // Check for empty filename
+  if (!filename || filename.length === 0) {
     return false;
   }
+
+  // Check maximum length to prevent filesystem issues
+  if (filename.length > MAX_FILENAME_LENGTH) {
+    return false;
+  }
+
+  // Check for hidden files (starting with .)
+  if (filename.startsWith(".")) {
+    return false;
+  }
+
+  // Check for path traversal patterns
+  if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+    return false;
+  }
+
+  // Only allow alphanumeric, underscore, hyphen, and .json extension
+  // Must have at least one character before .json
+  const validPattern = /^[a-zA-Z0-9_-]+\.json$/;
+  if (!validPattern.test(filename)) {
+    return false;
+  }
+
   return true;
 }
 
