@@ -276,22 +276,25 @@ export async function GET(request: Request) {
       }
     }
 
+    // Filter captures for pagination
+    const filtered = captures;
+
     // Build pagination metadata
     const pagination: PaginationMeta = {
       page: validPage,
       pageSize: validPageSize,
-      total: captures.length,
-      totalPages: Math.ceil(captures.length / validPageSize),
+      total: filtered.length,
+      totalPages: Math.ceil(filtered.length / validPageSize),
     };
 
     // Apply pagination
     const startIndex = (validPage - 1) * validPageSize;
-    const paginatedCaptures = captures.slice(startIndex, startIndex + validPageSize);
+    const paginatedCaptures = filtered.slice(startIndex, startIndex + validPageSize);
 
     // Always return consistent response format
     return Response.json({
       data: paginatedCaptures,
-      total: captures.length,
+      total: filtered.length,
       pagination,
     });
   } catch (error) {

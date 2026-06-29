@@ -69,14 +69,20 @@ export function isValidSession(data: unknown): data is Session {
   if (!data || typeof data !== "object") return false;
   const session = data as Record<string, unknown>;
   return (
+    typeof session.id === "string" &&
     typeof session.sessionId === "string" &&
     typeof session.source === "string" &&
     typeof session.provider === "string" &&
+    typeof session.apiFormat === "string" &&
     typeof session.targetUrl === "string" &&
     typeof session.timestamp === "string" &&
     typeof session.responseStatus === "number" &&
     typeof session.responseIsStreaming === "boolean" &&
-    (session.requestBody === null || typeof session.requestBody === "object")
+    typeof session.requestBody === "object" &&
+    session.requestBody !== null &&
+    typeof session.responseBody === "string" &&
+    typeof session.timings === "object" &&
+    typeof (session.timings as Record<string, unknown>).total_ms === "number"
   );
 }
 
