@@ -39,7 +39,6 @@
     "lib/**/*",
     "config/**/*",
     "types/**/*",
-    "utils/**/*",
     ".next/types/**/*.ts"
   ],
   "exclude": [

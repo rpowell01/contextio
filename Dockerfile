@@ -2,16 +2,16 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
-RUN corepack enable
-
+# Copy root package files for pnpm install
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
-COPY packages/core/package.json packages/core/package.json
-COPY packages/proxy/package.json packages/proxy/package.json
-COPY packages/logger/package.json packages/logger/package.json
-COPY packages/redact/package.json packages/redact/package.json
 
-RUN pnpm install --frozen-lockfile --filter @contextio/proxy...
+# Copy web package.json before install (needed for web dependencies)
+COPY packages/web/package.json packages/web/package.json
 
+# Enable corepack and install dependencies
+RUN corepack enable && pnpm install --frozen-lockfile
+
+# Copy source files
 COPY packages/core/src packages/core/src
 COPY packages/core/tsconfig.json packages/core/tsconfig.json
 COPY packages/proxy/src packages/proxy/src
@@ -20,11 +20,19 @@ COPY packages/logger/src packages/logger/src
 COPY packages/logger/tsconfig.json packages/logger/tsconfig.json
 COPY packages/redact/src packages/redact/src
 COPY packages/redact/tsconfig.json packages/redact/tsconfig.json
+COPY packages/web/next.config.mjs packages/web/next.config.mjs
+COPY packages/web/postcss.config.cjs packages/web/postcss.config.cjs
+COPY packages/web/tailwind.config.js packages/web/tailwind.config.js
+COPY packages/web/tsconfig.json packages/web/tsconfig.json
+COPY packages/web/app packages/web/app
+COPY packages/web/components packages/web/components
+COPY packages/web/lib packages/web/lib
+COPY packages/web/types packages/web/types
+COPY packages/web/globals.css packages/web/globals.css
+COPY packages/web/config packages/web/config
 
-RUN pnpm --filter @contextio/core \
-          --filter @contextio/logger \
-          --filter @contextio/redact \
-          --filter @contextio/proxy build
+# Build all packages
+RUN pnpm -r build
 
 
 FROM node:22-alpine AS runtime
@@ -34,8 +42,8 @@ ARG BUILDTIME
 ARG VERSION
 ARG REVISION
 
-LABEL org.opencontainers.image.title="contextio-proxy"
-LABEL org.opencontainers.image.description="LLM API proxy with redaction and logging. Zero external dependencies."
+LABEL org.opencontainers.image.title="contextio"
+LABEL org.opencontainers.image.description="LLM API proxy with redaction, logging, and web UI. Zero external dependencies."
 LABEL org.opencontainers.image.url="https://github.com/larsderidder/contextio"
 LABEL org.opencontainers.image.source="https://github.com/larsderidder/contextio"
 LABEL org.opencontainers.image.vendor="Lars de Ridder"
@@ -60,6 +68,11 @@ COPY --from=build /app/packages/logger/dist ./node_modules/@contextio/logger/dis
 COPY --from=build /app/packages/redact/package.json ./node_modules/@contextio/redact/package.json
 COPY --from=build /app/packages/redact/dist ./node_modules/@contextio/redact/dist
 
+COPY --from=build /app/packages/web/.next/standalone ./web
+COPY --from=build /app/packages/web/.next/static ./web/.next/static
+COPY --from=build /app/packages/web/package.json ./web/package.json
+COPY --from=build /app/packages/web/node_modules ./web/node_modules
+
 # ✅ FIXED: Proper JS (no HTML escaping)
 RUN printf '%s\n' \
 'import { createLoggerPlugin } from "@contextio/logger";' \
@@ -78,5 +91,15 @@ printf '%s\n' \
 
 USER node
 EXPOSE 4040
+EXPOSE 4041
 
-CMD ["node", "dist/server.js"]
+# Create a startup script that runs both proxy and web server
+RUN printf '%s\n' \
+'#!/bin/sh' \
+'echo "Starting ContextIO Proxy on port 4040..."' \
+'node dist/server.js &' \
+'echo "Starting ContextIO Web UI on port 4041..."' \
+'cd web && NEXT_PUBLIC_API_URL=http://localhost:4040 pnpm start -- -p 4041' \
+> /app/start.sh && chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]
