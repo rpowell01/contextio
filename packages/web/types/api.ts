@@ -36,16 +36,28 @@ export interface ProviderConfig {
 }
 
 export interface RedactionPolicy {
-  id: string;
-  name: string;
-  description: string;
-  rules: RedactionRule[];
+  extends?: "secrets" | "pii" | "strict";
+  rules?: RedactionRule[];
+  allowlist?: Allowlist;
+  paths?: Paths;
 }
 
 export interface RedactionRule {
   id: string;
   pattern: string;
   replacement: string;
+  context?: string[];
+  contextWindow?: number;
+}
+
+export interface Allowlist {
+  strings?: string[];
+  patterns?: string[];
+}
+
+export interface Paths {
+  only?: string[];
+  skip?: string[];
 }
 
 export interface ProxyStatus {

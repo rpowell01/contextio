@@ -1,6 +1,7 @@
 "use client";
 
 import { MainLayout } from "@/components/main-layout";
+import { PolicyEditor } from "@/components/policy-editor";
 import { useState } from "react";
 
 interface Settings {
@@ -95,6 +96,11 @@ export default function SettingsPage() {
                 </label>
               </div>
             </div>
+          </div>
+
+          <div className="rounded-lg border p-6">
+            <h3 className="font-semibold mb-4">Redaction Policy Editor</h3>
+            <PolicyEditor />
           </div>
 
           <button
