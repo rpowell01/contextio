@@ -108,10 +108,6 @@ export function PolicyEditor({ className }: PolicyEditorProps) {
     }
   }, [validatePolicy]);
 
-  const handleEditorDidMount = useCallback(() => {
-    // Editor mounted - can be used for additional setup if needed
-  }, []);
-
   if (isLoading) {
     return (
       <div className={className}>
@@ -165,7 +161,6 @@ export function PolicyEditor({ className }: PolicyEditorProps) {
           defaultLanguage="json"
           value={editorContent}
           onChange={handleEditorChange}
-          onMount={handleEditorDidMount}
           options={{
             formatOnPaste: true,
             formatOnType: true,
