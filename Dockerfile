@@ -14,7 +14,10 @@ COPY packages/web/package.json packages/web/package.json
 COPY packages/cli/package.json packages/cli/package.json
 
 # Enable corepack and install dependencies
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN corepack enable && \
+    corepack prepare pnpm@9.15.4 --activate && \
+    pnpm approve-builds sharp unrs-resolver && \
+    pnpm install --frozen-lockfile
 
 # Copy source files
 COPY packages/core/src packages/core/src
