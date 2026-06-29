@@ -4,6 +4,19 @@ import { join } from "node:path";
 
 import type { Capture, CaptureWithRedaction, RedactionDetails, PaginationMeta } from "@/types/api";
 
+// Pre-compiled regex for placeholder pattern matching.
+// Matches patterns like [EMAIL_1], [AWS_KEY_2], [SSN_REDACTED_3], etc.
+// Format: [UPPERCASE_WITH_UNDERSCORES_NUMBER]
+const PLACEHOLDER_REGEX = /\[([A-Z][A-Z0-9_]*)_(\d+)\]/g;
+
+/**
+ * Increment a counter in the byRule record.
+ * Helper to avoid repetitive Object.assign calls.
+ */
+function incrementRuleCount(byRule: Record<string, number>, ruleId: string): void {
+  byRule[ruleId] = (byRule[ruleId] ?? 0) + 1;
+}
+
 const CAPTURE_DIR = join(homedir(), ".contextio", "captures");
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit for capture files
 
@@ -63,22 +76,18 @@ function computeRedactionDetails(rawData: Record<string, unknown>): RedactionDet
   try {
     const requestBody = rawData.requestBody;
     if (requestBody && typeof requestBody === "object") {
-      const redacted = findRedactedValues(requestBody as Record<string, unknown>, "");
-      matches.push(...redacted.matches);
-      Object.assign(byRule, redacted.byRule);
+      findRedactedValues(requestBody as Record<string, unknown>, "", matches, byRule);
     }
 
     const responseBody = rawData.responseBody;
     if (typeof responseBody === "string") {
       try {
         const parsed = JSON.parse(responseBody);
-        const redacted = findRedactedValues(parsed as Record<string, unknown>, "");
-        matches.push(...redacted.matches);
-        Object.assign(byRule, redacted.byRule);
+        if (parsed && typeof parsed === "object") {
+          findRedactedValues(parsed as Record<string, unknown>, "", matches, byRule);
+        }
       } catch {
-        const redacted = findRedactedValuesInString(responseBody);
-        matches.push(...redacted.matches);
-        Object.assign(byRule, redacted.byRule);
+        findRedactedValuesInString(responseBody, matches, byRule);
       }
     }
   } catch (error) {
@@ -92,62 +101,69 @@ function computeRedactionDetails(rawData: Record<string, unknown>): RedactionDet
   };
 }
 
+/**
+ * Recursively walk a JSON object tree and find all redacted placeholders.
+ *
+ * Mutates the provided matches and byRule objects for efficiency.
+ * Handles nested objects, arrays, and primitive values.
+ *
+ * @param obj - The object to traverse
+ * @param currentPath - Current JSON path (empty string for root)
+ * @param matches - Array to collect match details (mutated in place)
+ * @param byRule - Record to collect per-rule counts (mutated in place)
+ */
 function findRedactedValues(
   obj: Record<string, unknown>,
-  path: string,
-): {
-  matches: { ruleId: string; original: string; placeholder: string; path: string }[];
-  byRule: Record<string, number>;
-} {
-  const matches: { ruleId: string; original: string; placeholder: string; path: string }[] = [];
-  const byRule: Record<string, number> = {};
-
+  currentPath: string,
+  matches: { ruleId: string; original: string; placeholder: string; path: string }[],
+  byRule: Record<string, number>,
+): void {
   for (const [key, value] of Object.entries(obj)) {
-    const currentPath = path ? `${path}.${key}` : key;
+    const path = currentPath ? `${currentPath}.${key}` : key;
 
     if (typeof value === "string") {
-      const redacted = findRedactedValuesInString(value);
-      for (const m of redacted.matches) {
-        matches.push({ ...m, path: `${currentPath}` });
-      }
-      Object.assign(byRule, redacted.byRule);
-    } else if (value && typeof value === "object") {
+      findRedactedValuesInString(value, matches, byRule, path);
+    } else if (value !== null && typeof value === "object") {
       if (Array.isArray(value)) {
         value.forEach((item, i) => {
+          const itemPath = `${path}[${i}]`;
           if (typeof item === "string") {
-            const redacted = findRedactedValuesInString(item);
-            for (const m of redacted.matches) {
-              matches.push({ ...m, path: `${currentPath}[${i}]` });
-            }
-            Object.assign(byRule, redacted.byRule);
-          } else if (item && typeof item === "object") {
-            const nested = findRedactedValues(item as Record<string, unknown>, `${currentPath}[${i}]`);
-            matches.push(...nested.matches);
-            Object.assign(byRule, nested.byRule);
+            findRedactedValuesInString(item, matches, byRule, itemPath);
+          } else if (item !== null && typeof item === "object") {
+            findRedactedValues(item as Record<string, unknown>, itemPath, matches, byRule);
           }
         });
       } else {
-        const nested = findRedactedValues(value as Record<string, unknown>, currentPath);
-        matches.push(...nested.matches);
-        Object.assign(byRule, nested.byRule);
+        findRedactedValues(value as Record<string, unknown>, path, matches, byRule);
       }
     }
+    // null and undefined values are skipped
   }
-
-  return { matches, byRule };
 }
 
-function findRedactedValuesInString(text: string): {
-  matches: { ruleId: string; original: string; placeholder: string; path: string }[];
-  byRule: Record<string, number>;
-} {
-  const matches: { ruleId: string; original: string; placeholder: string; path: string }[] = [];
-  const byRule: Record<string, number> = {};
+/**
+ * Find all redacted placeholders in a string.
+ *
+ * Uses a pre-compiled regex for efficiency. Mutates the provided matches
+ * and byRule objects for collecting results.
+ *
+ * @param text - The string to search for placeholders
+ * @param matches - Array to collect match details (mutated in place)
+ * @param byRule - Record to collect per-rule counts (mutated in place)
+ * @param path - JSON path where this string was found (used for context)
+ */
+function findRedactedValuesInString(
+  text: string,
+  matches: { ruleId: string; original: string; placeholder: string; path: string }[],
+  byRule: Record<string, number>,
+  path: string = "",
+): void {
+  // Reset regex lastIndex for global regex reuse
+  PLACEHOLDER_REGEX.lastIndex = 0;
 
-  const placeholderRegex = /\[([A-Z][A-Z0-9_]*)_(\d+)\]/g;
   let m: RegExpExecArray | null;
 
-  while ((m = placeholderRegex.exec(text)) !== null) {
+  while ((m = PLACEHOLDER_REGEX.exec(text)) !== null) {
     const placeholder = m[0];
     const ruleId = m[1].toLowerCase();
 
@@ -155,13 +171,11 @@ function findRedactedValuesInString(text: string): {
       ruleId,
       original: `[REDACTED_${ruleId.toUpperCase()}_${m[2]}]`,
       placeholder,
-      path: "",
+      path,
     });
 
-    byRule[ruleId] = (byRule[ruleId] || 0) + 1;
+    incrementRuleCount(byRule, ruleId);
   }
-
-  return { matches, byRule };
 }
 
 async function listCaptureFiles(): Promise<string[]> {

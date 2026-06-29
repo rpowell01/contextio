@@ -4,6 +4,33 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4040";
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 
 class APIClient {
+  /**
+   * Combines multiple AbortSignals into a single signal.
+   * Aborts when any of the provided signals abort.
+   */
+  private combineSignals(signals: AbortSignal[]): AbortSignal {
+    const controller = new AbortController();
+    
+    const abortHandler = () => {
+      controller.abort();
+    };
+    
+    const cleanup = () => {
+      signals.forEach(signal => {
+        signal.removeEventListener("abort", abortHandler);
+      });
+    };
+    
+    signals.forEach(signal => {
+      signal.addEventListener("abort", abortHandler);
+    });
+    
+    // Clean up listeners when our controller is aborted
+    controller.signal.addEventListener("abort", cleanup);
+    
+    return controller.signal;
+  }
+
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
@@ -11,7 +38,7 @@ class APIClient {
     // Combine provided signal with timeout controller signal
     const providedSignal = options?.signal;
     const signal = providedSignal
-      ? AbortSignal.any([providedSignal, controller.signal])
+      ? this.combineSignals([providedSignal, controller.signal])
       : controller.signal;
 
     try {
@@ -89,18 +116,28 @@ class APIClient {
     return data.logs;
   }
 
-  async streamLogs(containerId: string, onChunk: (log: LogEntry) => void): Promise<void> {
+  async streamLogs(
+    containerId: string,
+    onChunk: (log: LogEntry) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
     const params = new URLSearchParams();
     params.set("containerId", encodeURIComponent(containerId));
     params.set("stream", "true");
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+    
+    // Combine provided signal with controller signal
+    const combinedSignal = signal
+      ? this.combineSignals([signal, controller.signal])
+      : controller.signal;
+
+    const responsePromise = fetch(`${API_BASE_URL}/api/logs?${params.toString()}`, {
+      signal: combinedSignal,
+    });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/logs?${params.toString()}`, {
-        signal: controller.signal,
-      });
+      const response = await responsePromise;
       if (!response.ok) throw new Error("Failed to stream logs");
 
       const reader = response.body?.getReader();
@@ -143,11 +180,9 @@ class APIClient {
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        throw new Error("Request timeout");
+        throw new Error("Request aborted");
       }
       throw error;
-    } finally {
-      clearTimeout(timeoutId);
     }
   }
 
