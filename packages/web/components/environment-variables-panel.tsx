@@ -23,14 +23,19 @@ export function EnvironmentVariablesPanel({ containerId }: EnvironmentVariablesP
   const [filterSource, setFilterSource] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchEnvVars = async () => {
+  const fetchEnvVars = async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiClient.getContainerEnvVars(containerId);
+      const data = await apiClient.getContainerEnvVars(containerId, signal);
       setEnvVars(data);
-    } catch (err) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        // Request was cancelled, don't set error
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to fetch environment variables");
     } finally {
       setLoading(false);
@@ -38,8 +43,20 @@ export function EnvironmentVariablesPanel({ containerId }: EnvironmentVariablesP
   };
 
   useEffect(() => {
-    fetchEnvVars();
-    const interval = setInterval(fetchEnvVars, 30000);
+    // Cancel any in-flight request when containerId changes
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    fetchEnvVars(abortControllerRef.current.signal);
+    const interval = setInterval(() => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      fetchEnvVars(abortControllerRef.current.signal);
+    }, 30000);
     return () => clearInterval(interval);
   }, [containerId]);
 
@@ -48,6 +65,10 @@ export function EnvironmentVariablesPanel({ containerId }: EnvironmentVariablesP
     return () => {
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
+      }
+      // Cancel any in-flight request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, []);
@@ -81,6 +102,14 @@ export function EnvironmentVariablesPanel({ containerId }: EnvironmentVariablesP
     }
   };
 
+  const handleRefresh = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    fetchEnvVars(abortControllerRef.current.signal);
+  };
+
   if (loading) {
     return (
       <div className="rounded-lg border p-4">
@@ -105,7 +134,7 @@ export function EnvironmentVariablesPanel({ containerId }: EnvironmentVariablesP
         <h3 className="font-semibold">Container Environment Variables</h3>
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchEnvVars}
+            onClick={handleRefresh}
             className="inline-flex items-center gap-1 px-2 py-1 text-sm rounded hover:bg-muted"
             title="Refresh"
           >
@@ -117,8 +146,12 @@ export function EnvironmentVariablesPanel({ containerId }: EnvironmentVariablesP
 
       <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1">
+          <label htmlFor="env-var-search" className="sr-only">
+            Search environment variables
+          </label>
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
+            id="env-var-search"
             type="text"
             placeholder="Search variables..."
             value={searchTerm}
@@ -137,20 +170,26 @@ export function EnvironmentVariablesPanel({ containerId }: EnvironmentVariablesP
             className="pl-8 pr-3 py-2 text-sm border rounded-md w-full"
           />
         </div>
-        <select
-          value={filterSource}
-          onChange={(e) => {
-            setFilterSource(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="px-3 py-2 text-sm border rounded-md"
-        >
-          {sources.map((source) => (
-            <option key={source} value={source}>
-              {source === "all" ? "All Sources" : source}
-            </option>
-          ))}
-        </select>
+        <div>
+          <label htmlFor="env-var-filter" className="sr-only">
+            Filter by source
+          </label>
+          <select
+            id="env-var-filter"
+            value={filterSource}
+            onChange={(e) => {
+              setFilterSource(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-3 py-2 text-sm border rounded-md"
+          >
+            {sources.map((source) => (
+              <option key={source} value={source}>
+                {source === "all" ? "All Sources" : source}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="text-sm text-muted-foreground mb-2">
@@ -161,10 +200,10 @@ export function EnvironmentVariablesPanel({ containerId }: EnvironmentVariablesP
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-2 font-medium">Key</th>
-              <th className="text-left py-2 font-medium">Value</th>
-              <th className="text-left py-2 font-medium">Source</th>
-              <th className="w-10"></th>
+              <th scope="col" className="text-left py-2 font-medium">Key</th>
+              <th scope="col" className="text-left py-2 font-medium">Value</th>
+              <th scope="col" className="text-left py-2 font-medium">Source</th>
+              <th scope="col" className="w-10"></th>
             </tr>
           </thead>
           <tbody>
@@ -186,7 +225,7 @@ export function EnvironmentVariablesPanel({ containerId }: EnvironmentVariablesP
                       <button
                         onClick={() => copyToClipboard(envVar.value)}
                         className="opacity-50 hover:opacity-100"
-                        title="Copy value"
+                        aria-label={`Copy ${envVar.key} value`}
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
