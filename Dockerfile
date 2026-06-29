@@ -19,8 +19,7 @@ COPY packages/cli/package.json packages/cli/package.json
 RUN corepack enable && \
     export PATH="$PATH:/root/.local/share/pnpm/bin" && \
     pnpm config set minimum-release-age 0 --global && \
-    pnpm approve-builds sharp unrs-resolver && \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source files
 COPY packages/core/src packages/core/src
