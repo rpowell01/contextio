@@ -36,6 +36,10 @@ COPY packages/web/types packages/web/types
 COPY packages/web/globals.css packages/web/globals.css
 COPY packages/web/config packages/web/config
 
+# Copy cli package source files
+COPY packages/cli/src packages/cli/src
+COPY packages/cli/tsconfig.json packages/cli/tsconfig.json
+
 # Build all packages
 RUN pnpm -r build
 
