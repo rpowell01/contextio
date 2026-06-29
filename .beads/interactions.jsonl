@@ -86,3 +86,4 @@
 {"id":"int-81608840","kind":"field_change","created_at":"2026-06-29T14:19:05.246491606Z","actor":"Russell Powell","issue_id":"contextio-rsi","extra":{"field":"status","new_value":"closed","old_value":"open"}}
 {"id":"int-bb105595","kind":"field_change","created_at":"2026-06-29T14:19:06.819687594Z","actor":"Russell Powell","issue_id":"contextio-o3o","extra":{"field":"status","new_value":"closed","old_value":"in_progress"}}
 {"id":"int-3d422043","kind":"field_change","created_at":"2026-06-29T14:19:49.641625559Z","actor":"Russell Powell","issue_id":"contextio-xvz","extra":{"field":"status","new_value":"closed","old_value":"open"}}
+{"id":"int-defe2642","kind":"field_change","created_at":"2026-06-29T14:33:04.538796216Z","actor":"Russell Powell","issue_id":"contextio-k4y","extra":{"field":"status","new_value":"closed","old_value":"open"}}
