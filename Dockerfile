@@ -112,7 +112,7 @@ RUN printf '%s\n' \
 'echo "Starting ContextIO Proxy on port 4040..."' \
 'node dist/server.js &' \
 'echo "Starting ContextIO Web UI on port 4041..."' \
-'cd web && NEXT_PUBLIC_API_URL=http://localhost:4040 pnpm start -- -p 4041' \
+'cd web && NEXT_PUBLIC_API_URL=http://localhost:4040 node server.js -- -p 4041' \
 > /app/start.sh && chmod +x /app/start.sh
 
 # Fix permissions for node user (after all files are created)
