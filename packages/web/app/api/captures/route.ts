@@ -33,6 +33,9 @@ function extractCaptureMetadata(filename: string, data: Record<string, unknown>)
     total_ms: typeof rawTimings.total_ms === "number" ? rawTimings.total_ms : Number(rawTimings.total_ms) || 0,
   };
 
+  // Validate timestamp before using it
+  const validatedTimestamp = validateCaptureTimestamp(data.timestamp);
+
   return {
     id: filename,
     sessionId,
@@ -45,7 +48,7 @@ function extractCaptureMetadata(filename: string, data: Record<string, unknown>)
     responseBytes,
     responseStatus,
     responseIsStreaming,
-    timestamp: data.timestamp ?? new Date().toISOString(),
+    timestamp: validatedTimestamp ?? new Date().toISOString(),
     timings,
   };
 }
@@ -183,6 +186,15 @@ function validateDate(dateStr: string | null): Date | null {
 }
 
 /**
+ * Validate capture timestamp and return ISO string or null if invalid.
+ */
+function validateCaptureTimestamp(timestamp: unknown): string | null {
+  if (typeof timestamp !== "string") return null;
+  const date = new Date(timestamp);
+  return isNaN(date.getTime()) ? null : timestamp;
+}
+
+/**
  * Safely extract session ID from filename.
  * Format: {source}_{sessionId}_{timestamp}-{counter}.json
  * Session ID is expected to be 8 hex characters.
@@ -275,7 +287,9 @@ export async function GET(request: Request) {
         }
 
         // Apply date filters - skip records with invalid timestamps
-        const captureDate = new Date(capture.timestamp);
+        const captureTimestamp = validateCaptureTimestamp(capture.timestamp);
+        if (!captureTimestamp) continue;
+        const captureDate = new Date(captureTimestamp);
         if (isNaN(captureDate.getTime())) continue;
         if (fromDate && captureDate < fromDate) continue;
         if (toDate && captureDate > toDate) continue;

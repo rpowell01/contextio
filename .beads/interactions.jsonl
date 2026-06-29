@@ -83,3 +83,6 @@
 {"id":"int-55e1c4ec","kind":"field_change","created_at":"2026-06-29T14:04:10.867730324Z","actor":"Russell Powell","issue_id":"contextio-9wg","extra":{"field":"status","new_value":"closed","old_value":"in_progress"}}
 {"id":"int-212de67c","kind":"field_change","created_at":"2026-06-29T14:04:35.494453276Z","actor":"Russell Powell","issue_id":"contextio-510","extra":{"field":"status","new_value":"closed","old_value":"in_progress"}}
 {"id":"int-0d8dcfbc","kind":"field_change","created_at":"2026-06-29T14:13:21.796640056Z","actor":"Russell Powell","issue_id":"contextio-v6c","extra":{"field":"status","new_value":"closed","old_value":"open"}}
+{"id":"int-81608840","kind":"field_change","created_at":"2026-06-29T14:19:05.246491606Z","actor":"Russell Powell","issue_id":"contextio-rsi","extra":{"field":"status","new_value":"closed","old_value":"open"}}
+{"id":"int-bb105595","kind":"field_change","created_at":"2026-06-29T14:19:06.819687594Z","actor":"Russell Powell","issue_id":"contextio-o3o","extra":{"field":"status","new_value":"closed","old_value":"in_progress"}}
+{"id":"int-3d422043","kind":"field_change","created_at":"2026-06-29T14:19:49.641625559Z","actor":"Russell Powell","issue_id":"contextio-xvz","extra":{"field":"status","new_value":"closed","old_value":"open"}}

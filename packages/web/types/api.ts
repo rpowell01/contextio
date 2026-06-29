@@ -28,7 +28,7 @@ export interface Session {
   responseStatus: number;
   /** Whether the response is streaming */
   responseIsStreaming: boolean;
-  /** Raw response body as string (optional, nullable) */
+  /** Raw response body as string, or null if not available. Optional. */
   responseBody?: string | null;
   /** ISO timestamp of when the session was created */
   timestamp: string;
@@ -84,11 +84,11 @@ export interface ProviderConfig {
 export interface ProxyStatus {
   /** Whether the proxy is currently running */
   running: boolean;
-  /** Process ID if running */
+  /** Process ID if running (optional) */
   pid?: number;
   /** Port the proxy is listening on */
   port: number;
-  /** Human-readable uptime string (optional) */
+  /** Human-readable uptime string (if running). Optional. */
   uptime?: string;
   /** Number of active sessions */
   sessions: number;
@@ -118,9 +118,19 @@ export interface RedactionRule {
   pattern: string;
   /** Replacement string or placeholder */
   replacement: string;
-  /** Optional context strings for rule matching */
+  /**
+   * Optional context strings for rule matching.
+   * When provided, the redaction rule will only apply when the content
+   * contains at least one of the specified context strings within
+   * the contextWindow range.
+   */
   context?: string[];
-  /** Optional window size for context matching */
+  /**
+   * Optional window size for context matching, in characters.
+   * Defines how many characters before and after a pattern match
+   * to search for context strings. Must be a positive number.
+   * Defaults to 0 when context is specified without a window.
+   */
   contextWindow?: number;
 }
 
@@ -128,9 +138,9 @@ export interface RedactionRule {
  * List of allowed strings and patterns for filtering.
  */
 export interface Allowlist {
-  /** Array of strings to always allow (optional) */
+  /** Optional array of strings to always allow */
   strings?: string[];
-  /** Array of regex patterns to always allow (optional) */
+  /** Optional array of regex patterns to always allow */
   patterns?: string[];
 }
 
@@ -138,9 +148,9 @@ export interface Allowlist {
  * Path filtering configuration for including or excluding specific routes.
  */
 export interface Paths {
-  /** Array of paths to exclusively include (optional) */
+  /** Optional array of paths to exclusively include */
   only?: string[];
-  /** Array of paths to skip/exclude (optional) */
+  /** Optional array of paths to skip/exclude */
   skip?: string[];
 }
 
@@ -239,9 +249,9 @@ export interface PaginationMeta {
 export type APIResponse<T> = {
   /** Response data */
   data: T;
-  /** Total count for paginated results (optional) */
+  /** Optional total count for paginated results */
   total?: number;
-  /** Pagination metadata (optional) */
+  /** Optional pagination metadata */
   pagination?: PaginationMeta;
   /** Error message if request failed (optional) */
   error?: string;
