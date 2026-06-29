@@ -1,6 +1,11 @@
 import { MainLayout } from "@/components/main-layout";
 import { formatBytes, formatNumber } from "@/lib/utils";
-import type { MetricsData } from "@/types/api";
+import type {
+  MetricsData,
+  ProviderUsage,
+  RedactionMetric,
+  TrafficMetric,
+} from "@/types/api";
 
 /**
  * Fetch metrics data from the API.
@@ -31,14 +36,57 @@ async function fetchMetrics(): Promise<MetricsData> {
 function isValidMetricsData(data: unknown): data is MetricsData {
   if (!data || typeof data !== "object") return false;
   const metrics = data as Record<string, unknown>;
+
   return (
     typeof metrics.totalInputTokens === "number" &&
     typeof metrics.totalOutputTokens === "number" &&
     typeof metrics.totalRequestBytes === "number" &&
     typeof metrics.totalResponseBytes === "number" &&
     Array.isArray(metrics.providers) &&
+    metrics.providers.every(isValidProviderUsage) &&
     Array.isArray(metrics.redactions) &&
-    Array.isArray(metrics.traffic)
+    metrics.redactions.every(isValidRedactionMetric) &&
+    Array.isArray(metrics.traffic) &&
+    metrics.traffic.every(isValidTrafficMetric)
+  );
+}
+
+/**
+ * Validates a ProviderUsage object.
+ */
+function isValidProviderUsage(p: unknown): p is ProviderUsage {
+  if (!p || typeof p !== "object") return false;
+  const provider = p as Record<string, unknown>;
+  return (
+    typeof provider.provider === "string" &&
+    typeof provider.requestCount === "number" &&
+    typeof provider.totalInputTokens === "number" &&
+    typeof provider.totalOutputTokens === "number"
+  );
+}
+
+/**
+ * Validates a RedactionMetric object.
+ */
+function isValidRedactionMetric(r: unknown): r is RedactionMetric {
+  if (!r || typeof r !== "object") return false;
+  const redaction = r as Record<string, unknown>;
+  return (
+    typeof redaction.timestamp === "string" &&
+    typeof redaction.count === "number"
+  );
+}
+
+/**
+ * Validates a TrafficMetric object.
+ */
+function isValidTrafficMetric(t: unknown): t is TrafficMetric {
+  if (!t || typeof t !== "object") return false;
+  const traffic = t as Record<string, unknown>;
+  return (
+    typeof traffic.timestamp === "string" &&
+    typeof traffic.requestBytes === "number" &&
+    typeof traffic.responseBytes === "number"
   );
 }
 
