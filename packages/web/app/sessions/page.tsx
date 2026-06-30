@@ -4,7 +4,7 @@ import type { Session } from "@/types/api";
 import Link from "next/link";
 
 async function getSessions(): Promise<Session[]> {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4040";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4041";
   const res = await fetch(`${API_URL}/api/sessions`, {
     next: { revalidate: 30 },
   });

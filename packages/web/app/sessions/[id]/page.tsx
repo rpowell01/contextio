@@ -15,7 +15,7 @@ function renderResponseBody(body: unknown): React.ReactNode {
 }
 
 async function getSession(id: string): Promise<Session> {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4040";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4041";
   const res = await fetch(`${API_URL}/api/sessions/${id}`);
 
   if (!res.ok) {
