@@ -2,7 +2,12 @@ import fs from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { Capture, CaptureWithRedaction, RedactionDetails, PaginationMeta } from "@/types/api";
+import type {
+  Capture,
+  CaptureWithRedaction,
+  RedactionDetails,
+  PaginationMeta,
+} from "@/types/api";
 
 // Pre-compiled regex for placeholder pattern matching.
 // Matches patterns like [EMAIL_1], [AWS_KEY_2], [SSN_REDACTED_3], etc.
@@ -13,7 +18,10 @@ const PLACEHOLDER_REGEX = /\[([A-Z][A-Z0-9_]*)_(\d+)\]/g;
  * Increment a counter in the byRule record.
  * Helper to avoid repetitive Object.assign calls.
  */
-function incrementRuleCount(byRule: Record<string, number>, ruleId: string): void {
+function incrementRuleCount(
+  byRule: Record<string, number>,
+  ruleId: string,
+): void {
   byRule[ruleId] = (byRule[ruleId] ?? 0) + 1;
 }
 
@@ -23,36 +31,69 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit for capture files
 /**
  * Extract capture metadata from parsed data.
  */
-function extractCaptureMetadata(filename: string, data: Record<string, unknown>): Capture {
+function extractCaptureMetadata(
+  filename: string,
+  data: Record<string, unknown>,
+): Capture {
   // Extract session ID from filename
   const sessionId = extractSessionId(filename);
 
   // Extract and convert numeric fields
-  const requestBytes = typeof data.requestBytes === "number" ? data.requestBytes : Number(data.requestBytes) || 0;
-  const responseBytes = typeof data.responseBytes === "number" ? data.responseBytes : Number(data.responseBytes) || 0;
-  const responseStatus = typeof data.responseStatus === "number" ? data.responseStatus : Number(data.responseStatus) || 0;
+  const requestBytes =
+    typeof data.requestBytes === "number"
+      ? data.requestBytes
+      : Number(data.requestBytes) || 0;
+  const responseBytes =
+    typeof data.responseBytes === "number"
+      ? data.responseBytes
+      : Number(data.responseBytes) || 0;
+  const responseStatus =
+    typeof data.responseStatus === "number"
+      ? data.responseStatus
+      : Number(data.responseStatus) || 0;
 
   // Extract and convert boolean field
-  const responseIsStreaming = typeof data.responseIsStreaming === "boolean"
-    ? data.responseIsStreaming
-    : data.responseIsStreaming === true || data.responseIsStreaming === "true";
+  const responseIsStreaming =
+    typeof data.responseIsStreaming === "boolean"
+      ? data.responseIsStreaming
+      : data.responseIsStreaming === true ||
+        data.responseIsStreaming === "true";
 
   // Extract and convert timings subfields
-  const rawTimings = (data.timings && typeof data.timings === "object") ? data.timings as Record<string, unknown> : {};
+  const rawTimings =
+    data.timings && typeof data.timings === "object"
+      ? (data.timings as Record<string, unknown>)
+      : {};
   const timings = {
-    send_ms: typeof rawTimings.send_ms === "number" ? rawTimings.send_ms : Number(rawTimings.send_ms) || 0,
-    wait_ms: typeof rawTimings.wait_ms === "number" ? rawTimings.wait_ms : Number(rawTimings.wait_ms) || 0,
-    receive_ms: typeof rawTimings.receive_ms === "number" ? rawTimings.receive_ms : Number(rawTimings.receive_ms) || 0,
-    total_ms: typeof rawTimings.total_ms === "number" ? rawTimings.total_ms : Number(rawTimings.total_ms) || 0,
+    send_ms:
+      typeof rawTimings.send_ms === "number"
+        ? rawTimings.send_ms
+        : Number(rawTimings.send_ms) || 0,
+    wait_ms:
+      typeof rawTimings.wait_ms === "number"
+        ? rawTimings.wait_ms
+        : Number(rawTimings.wait_ms) || 0,
+    receive_ms:
+      typeof rawTimings.receive_ms === "number"
+        ? rawTimings.receive_ms
+        : Number(rawTimings.receive_ms) || 0,
+    total_ms:
+      typeof rawTimings.total_ms === "number"
+        ? rawTimings.total_ms
+        : Number(rawTimings.total_ms) || 0,
   };
 
   // Validate timestamp before using it
   const validatedTimestamp = validateCaptureTimestamp(data.timestamp);
 
+  // Extract source from data or filename
+  const extractedSource =
+    typeof data.source === "string" ? data.source : extractSource(filename);
+
   return {
     id: filename,
     sessionId,
-    source: typeof data.source === "string" ? data.source : null,
+    source: extractedSource,
     provider: typeof data.provider === "string" ? data.provider : "unknown",
     apiFormat: typeof data.apiFormat === "string" ? data.apiFormat : "unknown",
     targetUrl: typeof data.targetUrl === "string" ? data.targetUrl : "",
@@ -69,14 +110,26 @@ function extractCaptureMetadata(filename: string, data: Record<string, unknown>)
 /**
  * Compute redaction details from a capture.
  */
-function computeRedactionDetails(rawData: Record<string, unknown>): RedactionDetails {
-  const matches: { ruleId: string; original: string; placeholder: string; path: string }[] = [];
+function computeRedactionDetails(
+  rawData: Record<string, unknown>,
+): RedactionDetails {
+  const matches: {
+    ruleId: string;
+    original: string;
+    placeholder: string;
+    path: string;
+  }[] = [];
   const byRule: Record<string, number> = {};
 
   try {
     const requestBody = rawData.requestBody;
     if (requestBody && typeof requestBody === "object") {
-      findRedactedValues(requestBody as Record<string, unknown>, "", matches, byRule);
+      findRedactedValues(
+        requestBody as Record<string, unknown>,
+        "",
+        matches,
+        byRule,
+      );
     }
 
     const responseBody = rawData.responseBody;
@@ -84,7 +137,12 @@ function computeRedactionDetails(rawData: Record<string, unknown>): RedactionDet
       try {
         const parsed = JSON.parse(responseBody);
         if (parsed && typeof parsed === "object") {
-          findRedactedValues(parsed as Record<string, unknown>, "", matches, byRule);
+          findRedactedValues(
+            parsed as Record<string, unknown>,
+            "",
+            matches,
+            byRule,
+          );
         }
       } catch {
         findRedactedValuesInString(responseBody, matches, byRule);
@@ -115,7 +173,12 @@ function computeRedactionDetails(rawData: Record<string, unknown>): RedactionDet
 function findRedactedValues(
   obj: Record<string, unknown>,
   currentPath: string,
-  matches: { ruleId: string; original: string; placeholder: string; path: string }[],
+  matches: {
+    ruleId: string;
+    original: string;
+    placeholder: string;
+    path: string;
+  }[],
   byRule: Record<string, number>,
 ): void {
   for (const [key, value] of Object.entries(obj)) {
@@ -130,11 +193,21 @@ function findRedactedValues(
           if (typeof item === "string") {
             findRedactedValuesInString(item, matches, byRule, itemPath);
           } else if (item !== null && typeof item === "object") {
-            findRedactedValues(item as Record<string, unknown>, itemPath, matches, byRule);
+            findRedactedValues(
+              item as Record<string, unknown>,
+              itemPath,
+              matches,
+              byRule,
+            );
           }
         });
       } else {
-        findRedactedValues(value as Record<string, unknown>, path, matches, byRule);
+        findRedactedValues(
+          value as Record<string, unknown>,
+          path,
+          matches,
+          byRule,
+        );
       }
     }
     // null and undefined values are skipped
@@ -154,7 +227,12 @@ function findRedactedValues(
  */
 function findRedactedValuesInString(
   text: string,
-  matches: { ruleId: string; original: string; placeholder: string; path: string }[],
+  matches: {
+    ruleId: string;
+    original: string;
+    placeholder: string;
+    path: string;
+  }[],
   byRule: Record<string, number>,
   path: string = "",
 ): void {
@@ -212,26 +290,42 @@ const MAX_FILENAME_LENGTH = 255;
 
 /**
  * Safely extract session ID from filename.
- * Supports multiple filename formats:
- * - {source}_{sessionId}_{timestamp}-{counter}.json
- * - {sessionId}_{timestamp}-{counter}.json
- * Session ID is expected to be 8-16 hex characters.
+ * Supports filename format: {source}_{sessionId}_{timestamp}-{counter}.json
+ * where timestamp is 13-digit Unix epoch milliseconds.
+ * Session ID is expected to be 8 lowercase hex chars.
  *
  * @param filename - The capture filename to parse
  * @returns The extracted session ID or null if not found
  */
 function extractSessionId(filename: string): string | null {
-  // Match session ID patterns: 8-16 hex chars, either:
-  // 1. Between underscores: source_{sessionId}_timestamp...
-  // 2. At the start: {sessionId}_timestamp...
-  const match = filename.match(/_([a-f0-9]{8,16})_(?:\d{4}-\d{2}-\d{2}|[a-f0-9]{8,14})(?:[-_]?\d+)?\.json$/i);
-  if (match) {
-    return match[1].toLowerCase();
-  }
+  // Match: source_{sessionId}_{13digitTimestamp}-{counter}.json
+  // Session ID is 8 lowercase hex chars between underscores
+  const match = filename.match(/_([a-f0-9]{8})_\d{13}-\d{6}\.json$/i);
+  if (match) return match[1].toLowerCase();
 
   // Fallback: try to find any hex string that looks like a session ID
   const fallbackMatch = filename.match(/_([a-f0-9]{8,16})\.(json|tmp)$/i);
   return fallbackMatch ? fallbackMatch[1].toLowerCase() : null;
+}
+
+/**
+ * Safely extract source from filename.
+ * Supports filename format: {source}_{sessionId}_{timestamp}-{counter}.json
+ * where source is alphanumeric with hyphens/underscores.
+ *
+ * @param filename - The capture filename to parse
+ * @returns The extracted source or null if not found
+ */
+function extractSource(filename: string): string | null {
+  // Match: {source}_{sessionId}_{timestamp}-{counter}.json
+  // Source is everything before the last two underscore-separated segments
+  // Session ID is 8 lowercase hex chars, timestamp is 13 digits
+  const match = filename.match(
+    /^([a-zA-Z0-9_-]+)_[a-f0-9]{8}_\d{13}-\d{6}\.json$/i,
+  );
+  if (match) return match[1];
+
+  return null;
 }
 
 /**
@@ -257,7 +351,11 @@ function isValidFilename(filename: string): boolean {
   }
 
   // Check for path traversal patterns
-  if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+  if (
+    filename.includes("..") ||
+    filename.includes("/") ||
+    filename.includes("\\")
+  ) {
     return false;
   }
 
@@ -280,7 +378,8 @@ export async function GET(request: Request) {
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
     const redactionType = url.searchParams.get("redactionType");
-    const includeRedaction = url.searchParams.get("includeRedaction") === "true";
+    const includeRedaction =
+      url.searchParams.get("includeRedaction") === "true";
 
     // Pagination parameters
     const page = parseInt(url.searchParams.get("page") ?? "1", 10);
@@ -334,7 +433,11 @@ export async function GET(request: Request) {
           redaction = computeRedactionDetails(data);
 
           // Filter by redaction type if specified
-          if (redactionType && redactionType !== "all" && !redaction.byRule[redactionType]) {
+          if (
+            redactionType &&
+            redactionType !== "all" &&
+            !redaction.byRule[redactionType]
+          ) {
             continue;
           }
         }
@@ -377,7 +480,10 @@ export async function GET(request: Request) {
 
     // Apply pagination
     const startIndex = (validPage - 1) * validPageSize;
-    const paginatedCaptures = filtered.slice(startIndex, startIndex + validPageSize);
+    const paginatedCaptures = filtered.slice(
+      startIndex,
+      startIndex + validPageSize,
+    );
 
     // Always return consistent response format
     return Response.json({
@@ -387,9 +493,6 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Error in captures API:", error);
-    return Response.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
