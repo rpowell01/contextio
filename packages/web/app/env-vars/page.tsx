@@ -5,7 +5,7 @@ import { EnvironmentVariablesPanel } from "@/components/environment-variables-pa
 import { useState } from "react";
 
 export default function EnvVarsPage() {
-  const [containerId, setContainerId] = useState("demo-container");
+  const [containerId, setContainerId] = useState("contextio-next");
 
   return (
     <MainLayout>

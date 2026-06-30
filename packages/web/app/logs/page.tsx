@@ -5,7 +5,7 @@ import { LogsViewer } from "@/components/logs-viewer";
 import { useState } from "react";
 
 export default function LogsPage() {
-  const [containerId, setContainerId] = useState("demo-container");
+  const [containerId, setContainerId] = useState("contextio-next");
 
   return (
     <MainLayout>

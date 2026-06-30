@@ -65,6 +65,9 @@ async function loadPolicyFromFile(): Promise<RedactionPolicy> {
 
 async function savePolicyToFile(policy: RedactionPolicy): Promise<void> {
   try {
+    // Ensure directory exists
+    const dir = CUSTOM_POLICY_PATH.substring(0, CUSTOM_POLICY_PATH.lastIndexOf("/"));
+    await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(CUSTOM_POLICY_PATH, JSON.stringify(policy, null, 2), "utf-8");
   } catch (error) {
     console.error("Failed to save policy file:", error);

@@ -3,8 +3,25 @@ import type { Session, ProxyStatus, SessionStats, Capture, CaptureWithRedaction,
 // API routes are served by the same web server that serves the frontend
 // In Docker: web server on port 4041, API routes are internal (/api/*)
 // In development: Next.js dev server handles both frontend and API routes
-// Use relative URLs for internal API routes to work in both environments
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
+// Use relative URLs for browser requests (same-origin), absolute for server-side
+const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:4041";
+
+// Get the base URL for API requests based on context
+// In browser: use relative URLs for same-origin requests
+// In server-side rendering (ISR): use SITE_URL for absolute URLs
+function getApiBaseUrl(): string {
+  // If NEXT_PUBLIC_API_URL is explicitly set (non-empty), use it
+  // This handles Docker environments where the web UI is served separately
+  if (NEXT_PUBLIC_API_URL) return NEXT_PUBLIC_API_URL;
+  // For browser requests: empty string means same-origin (relative URLs work)
+  // For server-side requests: use SITE_URL
+  // We detect server-side by checking if we're in a Node.js context
+  if (typeof window !== "undefined") {
+    return ""; // Browser context - use relative URLs
+  }
+  return SITE_URL; // Server context - use absolute URL
+}
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 
 interface RetryConfig {
@@ -74,8 +91,8 @@ class APIClient {
     let lastError: Error | undefined;
     let retryDelay = retryConfig.initialDelay;
 
-    // Build the full URL - use relative URL if API_BASE_URL is empty (same-origin)
-    const baseUrl = API_BASE_URL || "";
+    // Build the full URL - use getApiBaseUrl() for proper context handling
+    const baseUrl = getApiBaseUrl();
 
     for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
       const controller = new AbortController();
@@ -217,7 +234,7 @@ class APIClient {
       ? this.combineSignals([signal, controller.signal])
       : controller.signal;
 
-    const responsePromise = fetch(`${API_BASE_URL}/api/logs?${params.toString()}`, {
+    const responsePromise = fetch(`${getApiBaseUrl()}/api/logs?${params.toString()}`, {
       signal: combinedSignal,
     });
 

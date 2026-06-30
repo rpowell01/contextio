@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 
 export default function ContainerLogsPage() {
   const params = useParams();
-  const containerId = typeof params.id === "string" ? params.id : "demo-container";
+  const containerId = typeof params.id === "string" ? params.id : "contextio-next";
 
   return (
     <MainLayout>

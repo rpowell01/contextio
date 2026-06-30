@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
   const streamMode = searchParams.get("stream") === "true";
 
   // Validate and sanitize inputs
-  const containerId = validateContainerId(rawContainerId) || "demo-container";
+  const containerId = validateContainerId(rawContainerId) || "contextio-next";
   const search = sanitizeString(rawSearch) || undefined;
   
   const rawLevels = searchParams.get("levels")?.split(",").filter(Boolean) || [];
@@ -144,7 +144,8 @@ export async function GET(request: NextRequest) {
   // Handle filtered/export response
   const logs = logsService.getLogs(containerId, { levels, search });
 
-  return NextResponse.json({ logs, containerId, sessionId });
+  // Always return "contextio-next" as the container name for consistency
+  return NextResponse.json({ logs, containerId: "contextio-next", sessionId });
 }
 
 export async function POST(request: NextRequest) {
@@ -153,7 +154,7 @@ export async function POST(request: NextRequest) {
     const { action, containerId } = body;
 
     // Validate inputs
-    const sanitizedContainerId = validateContainerId(containerId) || "demo-container";
+    const sanitizedContainerId = validateContainerId(containerId) || "contextio-next";
 
     if (action === "clear") {
       logsService.clearLogs(sanitizedContainerId);
