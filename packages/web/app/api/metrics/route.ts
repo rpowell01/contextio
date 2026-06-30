@@ -2,20 +2,7 @@ import fs from "node:fs/promises";
 import { join } from "node:path";
 
 import type { MetricsData, TrafficMetric, ProviderUsage, RedactionMetric } from "@/types/api";
-import { CAPTURE_DIR, MAX_FILE_SIZE, isValidFilename } from "@/lib/sessions/utils";
-
-/**
- * List capture files from the capture directory.
- */
-async function listCaptureFiles(): Promise<string[]> {
-  try {
-    const files = await fs.readdir(CAPTURE_DIR);
-    return files.filter((f) => isValidFilename(f) && !f.endsWith(".tmp")).sort();
-  } catch (error) {
-    console.error("Error listing capture files:", error);
-    return [];
-  }
-}
+import { CAPTURE_DIR, MAX_FILE_SIZE, listCaptureFiles } from "@/lib/sessions/utils";
 
 /**
  * Parse a single capture file and extract metrics.

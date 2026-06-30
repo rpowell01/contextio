@@ -97,12 +97,12 @@ COPY --from=build /app/packages/web/.next/static ./standalone/packages/web/.next
 COPY --from=build /app/packages/web/public/default-policy.json /app/default-policy.json
 
 # Create captures directory
-RUN mkdir -p /app/captures
+RUN mkdir -p /app/captures && chmod 777 /app/captures
 
 # Create custom-policy.json with default content if it doesn't exist
 RUN if [ ! -f /app/custom-policy.json ]; then \
     cp /app/default-policy.json /app/custom-policy.json; \
-    fi
+    fi && chmod 666 /app/custom-policy.json
 
 # ✅ FIXED: Proper JS (no HTML escaping)
 RUN printf '%s\n' \
@@ -121,12 +121,14 @@ printf '%s\n' \
 > /app/redact-plugin.js
 
 # Create a startup script that runs both proxy and web server
+# Note: API routes are served by the web server on port 4041, so we use relative URLs
+# NEXT_PUBLIC_API_URL is left empty to use relative URLs for same-origin API calls
 RUN printf '%s\n' \
 '#!/bin/sh' \
 'echo "Starting ContextIO Proxy on port 4040..."' \
 'node dist/server.js &' \
 'echo "Starting ContextIO Web UI on port 4041..."' \
-'cd standalone/packages/web && LOGGER_CAPTURE_DIR=/app/captures NEXT_PUBLIC_API_URL=http://localhost:4040 PORT=4041 node server.js' \
+'cd standalone/packages/web && LOGGER_CAPTURE_DIR=/app/captures PORT=4041 node server.js' \
 > /app/start.sh && chmod +x /app/start.sh
 
 # Fix permissions for node user (after all files are created)

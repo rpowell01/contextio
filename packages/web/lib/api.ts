@@ -1,6 +1,10 @@
 import type { Session, ProxyStatus, SessionStats, Capture, CaptureWithRedaction, APIResponse, ContainerEnvVar, LogEntry, LogsFilter } from "@/types/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4040";
+// API routes are served by the same web server that serves the frontend
+// In Docker: web server on port 4041, API routes are internal (/api/*)
+// In development: Next.js dev server handles both frontend and API routes
+// Use relative URLs for internal API routes to work in both environments
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 
 interface RetryConfig {
@@ -70,6 +74,9 @@ class APIClient {
     let lastError: Error | undefined;
     let retryDelay = retryConfig.initialDelay;
 
+    // Build the full URL - use relative URL if API_BASE_URL is empty (same-origin)
+    const baseUrl = API_BASE_URL || "";
+
     for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
@@ -87,7 +94,7 @@ class APIClient {
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const response = await fetch(`${baseUrl}${endpoint}`, {
           ...options,
           signal,
           headers: {
