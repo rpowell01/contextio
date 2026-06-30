@@ -2,33 +2,16 @@ import { MainLayout } from "@/components/main-layout";
 import { formatDateTime } from "@/lib/utils";
 import type { Session } from "@/types/api";
 import Link from "next/link";
-import fs from "node:fs/promises";
-import { join } from "node:path";
-import { listCaptureFiles, getSessionMetadata, CAPTURE_DIR, MAX_FILE_SIZE } from "@/lib/sessions/utils";
+import { apiClient } from "@/lib/api";
 
 async function getSessions(): Promise<Session[]> {
-  const files = await listCaptureFiles();
-  const sessions: Session[] = [];
-
-  for (const filename of files) {
-    try {
-      const filepath = join(CAPTURE_DIR, filename);
-      const stats = await fs.stat(filepath);
-      if (stats.size > MAX_FILE_SIZE) continue;
-
-      const raw = await fs.readFile(filepath, "utf8");
-      const data = JSON.parse(raw) as Record<string, unknown>;
-
-      const session = await getSessionMetadata(filename, data);
-      sessions.push(session);
-    } catch {
-      continue;
-    }
+  try {
+    const sessions = await apiClient.getSessions();
+    return sessions;
+  } catch (error) {
+    console.error("Failed to fetch sessions:", error);
+    return [];
   }
-
-  sessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-  return sessions;
 }
 
 export default async function SessionsPage() {

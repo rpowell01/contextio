@@ -1,0 +1,12 @@
+{
+  "extends": "secrets",
+  "rules": [],
+  "allowlist": {
+    "strings": [],
+    "patterns": []
+  },
+  "paths": {
+    "only": [],
+    "skip": []
+  }
+}

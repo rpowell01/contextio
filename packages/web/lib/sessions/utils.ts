@@ -111,7 +111,12 @@ export async function getSessionMetadata(
     timings: Session["timings"];
   }
 > {
-  const sessionId = extractSessionId(filename);
+  // Try to get sessionId from data first, then fall back to filename extraction
+  const sessionIdFromData =
+    typeof data.sessionId === "string" && data.sessionId.length > 0
+      ? data.sessionId
+      : null;
+  const sessionId = sessionIdFromData ?? extractSessionId(filename);
   const source =
     typeof data.source === "string"
       ? data.source

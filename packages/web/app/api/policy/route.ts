@@ -2,35 +2,69 @@ import fs from "node:fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { policySchema } from "@/lib/schema";
 import type { RedactionPolicy } from "@/types/api";
+import { join } from "node:path";
 
-// Default policy
-const defaultPolicy: RedactionPolicy = {
+// Default policy - bundled with the application (used as fallback)
+const bundledDefaultPolicy: RedactionPolicy = {
   extends: "secrets",
   rules: [],
+  allowlist: {
+    strings: [],
+    patterns: [],
+  },
+  paths: {
+    only: [],
+    skip: [],
+  },
 };
 
-// Policy file path - can be overridden via environment variable
-const POLICY_FILE_PATH = process.env.POLICY_FILE_PATH || "/app/custom-policy.json";
+// Policy file paths - custom file (user-modifiable) or bundled default
+const CUSTOM_POLICY_PATH = process.env.POLICY_FILE_PATH || "/app/custom-policy.json";
+// BUNDLED_POLICY_PATH can be set via env for Docker, otherwise use relative path
+const BUNDLED_POLICY_PATH = process.env.BUNDLED_POLICY_PATH || "/app/default-policy.json";
 
 async function loadPolicyFromFile(): Promise<RedactionPolicy> {
   try {
-    const content = await fs.readFile(POLICY_FILE_PATH, "utf-8");
+    // First, try to load the custom policy file
+    const content = await fs.readFile(CUSTOM_POLICY_PATH, "utf-8");
     const parsed = JSON.parse(content);
     const result = policySchema.safeParse(parsed);
     if (result.success) {
       return result.data;
     }
     console.warn("Policy file validation failed, using defaults");
-    return { ...defaultPolicy };
+    return { ...bundledDefaultPolicy };
   } catch (error) {
-    console.warn("Failed to load policy file, using defaults:", error);
-    return { ...defaultPolicy };
+    // Custom file doesn't exist or is invalid - try bundled default
+    try {
+      const bundledContent = await fs.readFile(BUNDLED_POLICY_PATH, "utf-8");
+      const parsed = JSON.parse(bundledContent);
+      const result = policySchema.safeParse(parsed);
+      if (result.success) {
+        return result.data;
+      }
+    } catch (bundledError) {
+      // Try fallback to public/default-policy.json for development
+      try {
+        const devPolicyPath = join(process.cwd(), "public", "default-policy.json");
+        const devContent = await fs.readFile(devPolicyPath, "utf-8");
+        const parsed = JSON.parse(devContent);
+        const result = policySchema.safeParse(parsed);
+        if (result.success) {
+          return result.data;
+        }
+      } catch (devError) {
+        // Fall through to in-memory default
+      }
+    }
+    console.warn("Failed to load policy file, using in-memory defaults");
+    return { ...bundledDefaultPolicy };
   }
 }
 
 async function savePolicyToFile(policy: RedactionPolicy): Promise<void> {
   try {
-    await fs.writeFile(POLICY_FILE_PATH, JSON.stringify(policy, null, 2), "utf-8");
+    await fs.writeFile(CUSTOM_POLICY_PATH, JSON.stringify(policy, null, 2), "utf-8");
   } catch (error) {
     console.error("Failed to save policy file:", error);
     throw new Error("Failed to persist policy to file");

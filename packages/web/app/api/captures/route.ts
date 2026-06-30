@@ -35,8 +35,8 @@ function extractCaptureMetadata(
   filename: string,
   data: Record<string, unknown>,
 ): Capture {
-  // Extract session ID from filename
-  const sessionId = extractSessionId(filename);
+  // Extract session ID from filename or data
+  const sessionId = extractSessionId(filename, data);
 
   // Extract and convert numeric fields
   const requestBytes =
@@ -291,16 +291,24 @@ function validateCaptureTimestamp(timestamp: unknown): string | null {
 const MAX_FILENAME_LENGTH = 255;
 
 /**
- * Safely extract session ID from filename.
+ * Safely extract session ID from filename or data.
  * Supports filename format: {source}_{sessionId}_{timestamp}-{counter}.json
  * where timestamp is 13-digit Unix epoch milliseconds.
  * Session ID is expected to be 8 lowercase hex chars.
  * Session ID is optional - if not present, returns null.
+ * Also checks for sessionId in the data object.
  *
  * @param filename - The capture filename to parse
+ * @param data - Optional parsed data to extract sessionId from
  * @returns The extracted session ID or null if not found
  */
-function extractSessionId(filename: string): string | null {
+function extractSessionId(filename: string, data?: Record<string, unknown>): string | null {
+  // First check if sessionId exists in the data
+  if (data && typeof data.sessionId === "string" && data.sessionId.length > 0) {
+    return data.sessionId;
+  }
+  
+  // Fall back to filename extraction
   // Match: source_{sessionId}_{13digitTimestamp}-{counter}.json
   // Session ID is 8 lowercase hex chars between underscores
   // Session ID is optional - only match if present
