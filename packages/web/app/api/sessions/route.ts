@@ -4,12 +4,12 @@ import { join } from "node:path";
 
 import type { Session } from "@/types/api";
 
-const CAPTURE_DIR = join(homedir(), ".contextio", "captures");
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+export const CAPTURE_DIR = join(homedir(), ".contextio", "captures");
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-const MAX_FILENAME_LENGTH = 255;
+export const MAX_FILENAME_LENGTH = 255;
 
-function isValidFilename(filename: string): boolean {
+export function isValidFilename(filename: string): boolean {
   if (!filename || filename.length === 0) return false;
   if (filename.length > MAX_FILENAME_LENGTH) return false;
   if (filename.startsWith(".")) return false;
@@ -18,7 +18,7 @@ function isValidFilename(filename: string): boolean {
   return validPattern.test(filename);
 }
 
-async function listCaptureFiles(): Promise<string[]> {
+export async function listCaptureFiles(): Promise<string[]> {
   try {
     const files = await fs.readdir(CAPTURE_DIR);
     return files.filter((f) => isValidFilename(f) && !f.endsWith(".tmp")).sort();
@@ -27,20 +27,20 @@ async function listCaptureFiles(): Promise<string[]> {
   }
 }
 
-function extractSessionId(filename: string): string | null {
+export function extractSessionId(filename: string): string | null {
   const match = filename.match(/_([a-f0-9]{8,16})_(?:\d{4}-\d{2}-\d{2}|[a-f0-9]{8,14})(?:[-_]?\d+)?\.json$/i);
   if (match) return match[1].toLowerCase();
   const fallbackMatch = filename.match(/_([a-f0-9]{8,16})\.(json|tmp)$/i);
   return fallbackMatch ? fallbackMatch[1].toLowerCase() : null;
 }
 
-function validateCaptureTimestamp(timestamp: unknown): string | null {
+export function validateCaptureTimestamp(timestamp: unknown): string | null {
   if (typeof timestamp !== "string") return null;
   const date = new Date(timestamp);
   return isNaN(date.getTime()) ? null : timestamp;
 }
 
-async function getSessionMetadata(filename: string, data: Record<string, unknown>): Promise<Omit<Session, "requestBody" | "responseBody" | "timings"> & { requestBody: Record<string, unknown>; responseBody: string | null; timings: Session["timings"] }> {
+export async function getSessionMetadata(filename: string, data: Record<string, unknown>): Promise<Omit<Session, "requestBody" | "responseBody" | "timings"> & { requestBody: Record<string, unknown>; responseBody: string | null; timings: Session["timings"] }> {
   const sessionId = extractSessionId(filename);
   const responseStatus = typeof data.responseStatus === "number" ? data.responseStatus : Number(data.responseStatus) || 0;
   const responseIsStreaming = typeof data.responseIsStreaming === "boolean" ? data.responseIsStreaming : data.responseIsStreaming === true || data.responseIsStreaming === "true";
