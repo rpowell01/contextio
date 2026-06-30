@@ -5,7 +5,7 @@ import type { Session } from "@/types/api";
 import Link from "next/link";
 import fs from "node:fs/promises";
 import { join } from "node:path";
-import { listCaptureFiles, getSessionMetadata, CAPTURE_DIR, MAX_FILE_SIZE, extractSessionId, validateCaptureTimestamp } from "@/app/api/sessions/route";
+import { listCaptureFiles, getSessionMetadata, CAPTURE_DIR, MAX_FILE_SIZE, extractSessionId } from "@/lib/sessions/utils";
 
 function renderResponseBody(body: unknown): React.ReactNode {
   if (typeof body === "string") {

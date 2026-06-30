@@ -4,7 +4,7 @@ import type { Session } from "@/types/api";
 import Link from "next/link";
 import fs from "node:fs/promises";
 import { join } from "node:path";
-import { listCaptureFiles, getSessionMetadata, CAPTURE_DIR, MAX_FILE_SIZE } from "@/app/api/sessions/route";
+import { listCaptureFiles, getSessionMetadata, CAPTURE_DIR, MAX_FILE_SIZE } from "@/lib/sessions/utils";
 
 async function getSessions(): Promise<Session[]> {
   const files = await listCaptureFiles();
@@ -62,7 +62,7 @@ export default async function SessionsPage() {
         {!error && sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12">
             <svg className="h-12 w-12 text-muted-foreground mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h5.5a2 2 0 002-2V9a2 2 0 00-2-2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h5.5a2 2 0 002-2V9a2 2 0 002-2V9a2 2 0 00-2-2z" />
             </svg>
             <h3 className="font-semibold mb-2">No sessions captured yet</h3>
             <p className="text-sm text-muted-foreground">
@@ -80,7 +80,7 @@ export default async function SessionsPage() {
                 <div className="flex items-center gap-4">
                   <div className="rounded-full bg-primary/10 p-3">
                     <svg className="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h5.5a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h5.5a2 2 0 002-2V9a2 2 0 002-2V9a2 2 0 00-2-2z" />
                     </svg>
                   </div>
                   <div>
