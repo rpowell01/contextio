@@ -88,7 +88,9 @@ function extractCaptureMetadata(
 
   // Extract source from data or filename
   const extractedSource =
-    typeof data.source === "string" ? data.source : extractSource(filename);
+    typeof data.source === "string"
+      ? data.source
+      : (extractSource(filename) ?? "unknown");
 
   return {
     id: filename,
@@ -293,6 +295,7 @@ const MAX_FILENAME_LENGTH = 255;
  * Supports filename format: {source}_{sessionId}_{timestamp}-{counter}.json
  * where timestamp is 13-digit Unix epoch milliseconds.
  * Session ID is expected to be 8 lowercase hex chars.
+ * Session ID is optional - if not present, returns null.
  *
  * @param filename - The capture filename to parse
  * @returns The extracted session ID or null if not found
@@ -300,30 +303,36 @@ const MAX_FILENAME_LENGTH = 255;
 function extractSessionId(filename: string): string | null {
   // Match: source_{sessionId}_{13digitTimestamp}-{counter}.json
   // Session ID is 8 lowercase hex chars between underscores
+  // Session ID is optional - only match if present
   const match = filename.match(/_([a-f0-9]{8})_\d{13}-\d{6}\.json$/i);
   if (match) return match[1].toLowerCase();
 
-  // Fallback: try to find any hex string that looks like a session ID
-  const fallbackMatch = filename.match(/_([a-f0-9]{8,16})\.(json|tmp)$/i);
-  return fallbackMatch ? fallbackMatch[1].toLowerCase() : null;
+  return null;
 }
 
 /**
  * Safely extract source from filename.
  * Supports filename format: {source}_{sessionId}_{timestamp}-{counter}.json
  * where source is alphanumeric with hyphens/underscores.
+ * Session ID is optional - if present, it's 8 hex chars before timestamp.
  *
  * @param filename - The capture filename to parse
  * @returns The extracted source or null if not found
  */
 function extractSource(filename: string): string | null {
-  // Match: {source}_{sessionId}_{timestamp}-{counter}.json
-  // Source is everything before the last two underscore-separated segments
-  // Session ID is 8 lowercase hex chars, timestamp is 13 digits
-  const match = filename.match(
+  // With session ID: {source}_{sessionId}_{13digitTimestamp}-{counter}.json
+  // Source is everything before the session ID (8 hex chars before timestamp)
+  const withSessionMatch = filename.match(
     /^([a-zA-Z0-9_-]+)_[a-f0-9]{8}_\d{13}-\d{6}\.json$/i,
   );
-  if (match) return match[1];
+  if (withSessionMatch) return withSessionMatch[1];
+
+  // Without session ID: {source}_{13digitTimestamp}-{counter}.json
+  // Source is everything before the timestamp
+  const withoutSessionMatch = filename.match(
+    /^([a-zA-Z0-9_-]+)_\d{13}-\d{6}\.json$/i,
+  );
+  if (withoutSessionMatch) return withoutSessionMatch[1];
 
   return null;
 }
