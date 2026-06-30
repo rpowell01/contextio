@@ -77,7 +77,7 @@ export async function GET() {
       try {
         const filepath = join(CAPTURE_DIR, filename);
         const stats = await fs.stat(filepath);
-        if (stats.size > 10 * 1024 * 1024) continue;
+        if (stats.size > MAX_FILE_SIZE) continue;
 
         const raw = await fs.readFile(filepath, "utf8");
         const data = JSON.parse(raw) as Record<string, unknown>;
