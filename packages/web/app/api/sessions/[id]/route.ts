@@ -41,8 +41,6 @@ function validateCaptureTimestamp(timestamp: unknown): string | null {
 
 async function getSessionMetadata(filename: string, data: Record<string, unknown>): Promise<Omit<Session, "requestBody" | "responseBody" | "timings"> & { requestBody: Record<string, unknown>; responseBody: string | null; timings: Session["timings"] }> {
   const sessionId = extractSessionId(filename);
-  const _requestBytes = typeof data.requestBytes === "number" ? data.requestBytes : Number(data.requestBytes) || 0;
-  const _responseBytes = typeof data.responseBytes === "number" ? data.responseBytes : Number(data.responseBytes) || 0;
   const responseStatus = typeof data.responseStatus === "number" ? data.responseStatus : Number(data.responseStatus) || 0;
   const responseIsStreaming = typeof data.responseIsStreaming === "boolean" ? data.responseIsStreaming : data.responseIsStreaming === true || data.responseIsStreaming === "true";
 
