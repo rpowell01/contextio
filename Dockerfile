@@ -86,7 +86,7 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/packages/proxy/dist ./dist
 
 # Copy web standalone
-COPY --from=build /app/packages/web/.next/standalone ./web
+COPY --from=build /app/packages/web/.next/standalone/packages/web ./web
 COPY --from=build /app/packages/web/.next/static ./web/.next/static
 COPY --from=build /app/packages/web/package.json ./web/package.json
 
