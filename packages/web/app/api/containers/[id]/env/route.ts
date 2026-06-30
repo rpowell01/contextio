@@ -1,7 +1,7 @@
 import type { ContainerEnvVar } from "@/types/api";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const { id: _id } = await params;
 
   try {
     // In a real implementation, this would fetch from Docker API
