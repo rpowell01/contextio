@@ -88,6 +88,7 @@ COPY --from=build /app/packages/proxy/dist ./dist
 # Copy web standalone (preserving symlink structure)
 COPY --from=build /app/packages/web/.next/standalone ./standalone
 COPY --from=build /app/packages/web/.next/static ./standalone/.next/static
+COPY --from=build /app/packages/web/.next/static ./standalone/packages/web/.next/static
 
 # ✅ FIXED: Proper JS (no HTML escaping)
 RUN printf '%s\n' \
