@@ -54,7 +54,7 @@ async function getSessionMetadata(filename: string, data: Record<string, unknown
   return {
     id: filename,
     sessionId: sessionId ?? "",
-    source: typeof data.source === "string" ? data.source : null,
+    source: typeof data.source === "string" ? data.source : "unknown",
     provider: typeof data.provider === "string" ? data.provider : "unknown",
     apiFormat: typeof data.apiFormat === "string" ? data.apiFormat : "unknown",
     targetUrl: typeof data.targetUrl === "string" ? data.targetUrl : "",
