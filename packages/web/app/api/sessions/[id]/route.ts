@@ -6,7 +6,6 @@ import type { Session } from "@/types/api";
 
 const CAPTURE_DIR = join(homedir(), ".contextio", "captures");
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-
 const MAX_FILENAME_LENGTH = 255;
 
 function isValidFilename(filename: string): boolean {
@@ -81,7 +80,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       try {
         const filepath = join(CAPTURE_DIR, filename);
         const stats = await fs.stat(filepath);
-        if (stats.size > 10 * 1024 * 1024) continue;
+        if (stats.size > MAX_FILE_SIZE) continue;
 
         const raw = await fs.readFile(filepath, "utf8");
         const data = JSON.parse(raw) as Record<string, unknown>;
