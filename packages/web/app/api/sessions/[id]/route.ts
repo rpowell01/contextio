@@ -58,7 +58,6 @@ async function getSessionMetadata(filename: string, data: Record<string, unknown
     provider: typeof data.provider === "string" ? data.provider : "unknown",
     apiFormat: typeof data.apiFormat === "string" ? data.apiFormat : "unknown",
     targetUrl: typeof data.targetUrl === "string" ? data.targetUrl : "",
-    method: typeof data.method === "string" ? data.method : "POST",
     requestBody: (typeof data.requestBody === "object" && data.requestBody !== null) ? data.requestBody as Record<string, unknown> : {},
     responseBody: typeof data.responseBody === "string" ? data.responseBody : null,
     responseStatus,
