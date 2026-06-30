@@ -85,10 +85,9 @@ COPY --from=build /app/packages ./packages
 # Copy proxy dist to root for server entry
 COPY --from=build /app/packages/proxy/dist ./dist
 
-# Copy web standalone
-COPY --from=build /app/packages/web/.next/standalone/packages/web ./web
-COPY --from=build /app/packages/web/.next/standalone/packages/web/node_modules ./web/node_modules
-COPY --from=build /app/packages/web/.next/static ./web/.next/static
+# Copy web standalone (preserving symlink structure)
+COPY --from=build /app/packages/web/.next/standalone ./standalone
+COPY --from=build /app/packages/web/.next/static ./standalone/.next/static
 
 # ✅ FIXED: Proper JS (no HTML escaping)
 RUN printf '%s\n' \
@@ -112,7 +111,7 @@ RUN printf '%s\n' \
 'echo "Starting ContextIO Proxy on port 4040..."' \
 'node dist/server.js &' \
 'echo "Starting ContextIO Web UI on port 4041..."' \
-'cd web && NEXT_PUBLIC_API_URL=http://localhost:4040 node server.js -- -p 4041' \
+'cd standalone && NEXT_PUBLIC_API_URL=http://localhost:4040 node server.js -- -p 4041' \
 > /app/start.sh && chmod +x /app/start.sh
 
 # Fix permissions for node user (after all files are created)
