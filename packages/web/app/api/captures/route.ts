@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 
 import type {
@@ -8,6 +7,8 @@ import type {
   RedactionDetails,
   PaginationMeta,
 } from "@/types/api";
+
+import { CAPTURE_DIR, MAX_FILE_SIZE, isValidFilename } from "@/lib/sessions/utils";
 
 // Pre-compiled regex for placeholder pattern matching.
 // Matches patterns like [EMAIL_1], [AWS_KEY_2], [SSN_REDACTED_3], etc.
@@ -24,9 +25,6 @@ function incrementRuleCount(
 ): void {
   byRule[ruleId] = (byRule[ruleId] ?? 0) + 1;
 }
-
-const CAPTURE_DIR = join(homedir(), ".contextio", "captures");
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit for capture files
 
 /**
  * Extract capture metadata from parsed data.
@@ -288,8 +286,6 @@ function validateCaptureTimestamp(timestamp: unknown): string | null {
   return isNaN(date.getTime()) ? null : timestamp;
 }
 
-const MAX_FILENAME_LENGTH = 255;
-
 /**
  * Safely extract session ID from filename or data.
  * Supports filename format: {source}_{sessionId}_{timestamp}-{counter}.json
@@ -343,47 +339,6 @@ function extractSource(filename: string): string | null {
   if (withoutSessionMatch) return withoutSessionMatch[1];
 
   return null;
-}
-
-/**
- * Validate filename to prevent path traversal attacks and ensure safe file access.
- *
- * @param filename - The filename to validate
- * @returns true if the filename is valid and safe, false otherwise
- */
-function isValidFilename(filename: string): boolean {
-  // Check for empty filename
-  if (!filename || filename.length === 0) {
-    return false;
-  }
-
-  // Check maximum length to prevent filesystem issues
-  if (filename.length > MAX_FILENAME_LENGTH) {
-    return false;
-  }
-
-  // Check for hidden files (starting with .)
-  if (filename.startsWith(".")) {
-    return false;
-  }
-
-  // Check for path traversal patterns
-  if (
-    filename.includes("..") ||
-    filename.includes("/") ||
-    filename.includes("\\")
-  ) {
-    return false;
-  }
-
-  // Only allow alphanumeric, underscore, hyphen, and .json extension
-  // Must have at least one character before .json
-  const validPattern = /^[a-zA-Z0-9_-]+\.json$/;
-  if (!validPattern.test(filename)) {
-    return false;
-  }
-
-  return true;
 }
 
 export async function GET(request: Request) {

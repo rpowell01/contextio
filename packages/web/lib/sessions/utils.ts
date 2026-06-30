@@ -7,7 +7,9 @@ import type { Session } from "@/types/api";
 // Re-export Session type for convenience
 export type { Session } from "@/types/api";
 
-export const CAPTURE_DIR = join(homedir(), ".contextio", "captures");
+// Allow override via environment variable (used in Docker environments)
+// Falls back to default ~/.contextio/captures for local development
+export const CAPTURE_DIR = process.env.LOGGER_CAPTURE_DIR || join(homedir(), ".contextio", "captures");
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const MAX_FILENAME_LENGTH = 255;
 

@@ -1,6 +1,6 @@
 import type { Session, ProxyStatus, SessionStats, Capture, CaptureWithRedaction, APIResponse, ContainerEnvVar, LogEntry, LogsFilter } from "@/types/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4040";
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 
 interface RetryConfig {

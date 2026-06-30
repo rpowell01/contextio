@@ -19,7 +19,8 @@ const bundledDefaultPolicy: RedactionPolicy = {
 };
 
 // Policy file paths - custom file (user-modifiable) or bundled default
-const CUSTOM_POLICY_PATH = process.env.POLICY_FILE_PATH || "/app/custom-policy.json";
+// Use REDACT_POLICY_FILE to match the redact plugin's environment variable
+const CUSTOM_POLICY_PATH = process.env.REDACT_POLICY_FILE || "/app/custom-policy.json";
 // BUNDLED_POLICY_PATH can be set via env for Docker, otherwise use relative path
 const BUNDLED_POLICY_PATH = process.env.BUNDLED_POLICY_PATH || "/app/default-policy.json";
 

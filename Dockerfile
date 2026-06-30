@@ -42,6 +42,7 @@ COPY packages/web/lib packages/web/lib
 COPY packages/web/types packages/web/types
 COPY packages/web/globals.css packages/web/globals.css
 COPY packages/web/config packages/web/config
+COPY packages/web/public packages/web/public
 
 # Copy cli package source files
 COPY packages/cli/src packages/cli/src
@@ -74,6 +75,8 @@ ENV CONTEXT_PROXY_PORT=4040
 ENV CONTEXT_PROXY_PLUGINS=/app/logger-plugin.js,/app/redact-plugin.js
 ENV LOG_TRAFFIC=false
 ENV DEBUG_ROUTING=false
+ENV LOGGER_CAPTURE_DIR=/app/captures
+ENV REDACT_POLICY_FILE=/app/custom-policy.json
 
 # Enable corepack for pnpm in runtime
 RUN corepack enable
@@ -89,6 +92,17 @@ COPY --from=build /app/packages/proxy/dist ./dist
 COPY --from=build /app/packages/web/.next/standalone ./standalone
 COPY --from=build /app/packages/web/.next/static ./standalone/.next/static
 COPY --from=build /app/packages/web/.next/static ./standalone/packages/web/.next/static
+
+# Copy bundled default policy file
+COPY --from=build /app/packages/web/public/default-policy.json /app/default-policy.json
+
+# Create captures directory
+RUN mkdir -p /app/captures
+
+# Create custom-policy.json with default content if it doesn't exist
+RUN if [ ! -f /app/custom-policy.json ]; then \
+    cp /app/default-policy.json /app/custom-policy.json; \
+    fi
 
 # ✅ FIXED: Proper JS (no HTML escaping)
 RUN printf '%s\n' \
@@ -112,7 +126,7 @@ RUN printf '%s\n' \
 'echo "Starting ContextIO Proxy on port 4040..."' \
 'node dist/server.js &' \
 'echo "Starting ContextIO Web UI on port 4041..."' \
-'cd standalone/packages/web && NEXT_PUBLIC_API_URL=http://localhost:4040 PORT=4041 node server.js' \
+'cd standalone/packages/web && LOGGER_CAPTURE_DIR=/app/captures NEXT_PUBLIC_API_URL=http://localhost:4040 PORT=4041 node server.js' \
 > /app/start.sh && chmod +x /app/start.sh
 
 # Fix permissions for node user (after all files are created)
