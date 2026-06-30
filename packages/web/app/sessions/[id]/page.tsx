@@ -114,7 +114,7 @@ export default async function SessionDetailPage({
 
             <div className="rounded-lg border p-4">
               <h3 className="font-semibold mb-3">Request Body</h3>
-              <pre className="rounded bg-muted p-4 text-xs overflow-x-auto">
+              <pre className="rounded bg-muted p-4 text-xs overflow-x-auto max-h-96 whitespace-pre-wrap break-words">
                 {safeJsonStringify(session.requestBody, 2)}
               </pre>
             </div>
@@ -122,7 +122,7 @@ export default async function SessionDetailPage({
             {session.responseBody !== undefined && session.responseBody !== null && (
               <div className="rounded-lg border p-4">
                 <h3 className="font-semibold mb-3">Response Body</h3>
-                <pre className="rounded bg-muted p-4 text-xs overflow-x-auto">
+                <pre className="rounded bg-muted p-4 text-xs overflow-x-auto max-h-96 whitespace-pre-wrap break-words">
                   {renderResponseBody(session.responseBody)}
                 </pre>
               </div>

@@ -10,6 +10,25 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* Constrain images and pre content to prevent huge display */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Limit base64/image data display in pre blocks */
+pre code,
+pre {
+  max-width: 100%;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
 /* Focus styles */
 a:focus,
 button:focus {
@@ -35,4 +54,16 @@ button:focus {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* Constrain images to container width */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Constrain pre/code blocks */
+pre {
+  max-width: 100%;
+  overflow-x: auto;
 }
