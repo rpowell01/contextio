@@ -3,6 +3,9 @@ import { LogsViewer } from "@/components/logs-viewer";
 import { formatDateTime, isValidSession, safeJsonStringify } from "@/lib/utils";
 import type { Session } from "@/types/api";
 import Link from "next/link";
+import fs from "node:fs/promises";
+import { join } from "node:path";
+import { listCaptureFiles, getSessionMetadata, CAPTURE_DIR, MAX_FILE_SIZE, extractSessionId, validateCaptureTimestamp } from "@/app/api/sessions/route";
 
 function renderResponseBody(body: unknown): React.ReactNode {
   if (typeof body === "string") {
@@ -15,21 +18,34 @@ function renderResponseBody(body: unknown): React.ReactNode {
 }
 
 async function getSession(id: string): Promise<Session> {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4041";
-  const res = await fetch(`${API_URL}/api/sessions/${id}`);
+  const files = await listCaptureFiles();
 
-  if (!res.ok) {
-    throw new Error("Session not found");
+  for (const filename of files) {
+    try {
+      const filepath = join(CAPTURE_DIR, filename);
+      const stats = await fs.stat(filepath);
+      if (stats.size > MAX_FILE_SIZE) continue;
+
+      const raw = await fs.readFile(filepath, "utf8");
+      const data = JSON.parse(raw) as Record<string, unknown>;
+
+      const sessionId = extractSessionId(filename);
+      if (sessionId !== id) continue;
+
+      const session = await getSessionMetadata(filename, data);
+
+      // Validate the response
+      if (!isValidSession(session)) {
+        throw new Error("Invalid session data received from API");
+      }
+
+      return session;
+    } catch {
+      continue;
+    }
   }
 
-  const data = await res.json();
-
-  // Validate the response
-  if (!isValidSession(data)) {
-    throw new Error("Invalid session data received from API");
-  }
-
-  return data;
+  throw new Error("Session not found");
 }
 
 export default async function SessionDetailPage({
