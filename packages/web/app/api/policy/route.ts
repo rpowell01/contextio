@@ -118,8 +118,11 @@ export async function PUT(request: NextRequest) {
     
     return NextResponse.json(result.data);
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error("Failed to save policy:", error);
     return NextResponse.json(
-      { error: "Failed to save policy" },
+      { error: "Failed to save policy", details: errorMessage, stack: errorStack },
       { status: 500 }
     );
   }
