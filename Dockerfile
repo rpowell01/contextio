@@ -134,8 +134,9 @@ RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'if [ ! -f "$POLICY_FILE" ]; then' >> /app/start.sh && \
     echo '    echo "Policy file not found at $POLICY_FILE, creating from default..."' >> /app/start.sh && \
     echo '    cp /app/default-policy.json "$POLICY_FILE"' >> /app/start.sh && \
-    echo '    chmod 666 "$POLICY_FILE" 2>/dev/null || true' >> /app/start.sh && \
     echo 'fi' >> /app/start.sh && \
+    echo '# Ensure policy file is writable by node user' >> /app/start.sh && \
+    echo 'chmod 666 "$POLICY_FILE" 2>/dev/null || true' >> /app/start.sh && \
     echo 'echo "Using policy file: $POLICY_FILE"' >> /app/start.sh && \
     echo 'mkdir -p "$CAPTURE_DIR"' >> /app/start.sh && \
     echo 'chmod 777 "$CAPTURE_DIR" 2>/dev/null || true' >> /app/start.sh && \
