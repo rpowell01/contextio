@@ -126,12 +126,16 @@ RUN printf '%s\n' \
 '# Use CAPTURE_DIR from env (Coolify sets this) or default to /app/captures' \
 'CAPTURE_DIR="${LOGGER_CAPTURE_DIR:-/app/captures}"' \
 'echo "Using capture directory: $CAPTURE_DIR"' \
+'# Handle custom-policy.json - Coolify may mount it as root-owned via persistent storage' \
 'if [ ! -f /app/custom-policy.json ]; then' \
 '    echo "Creating custom-policy.json from default..."' \
 '    cp /app/default-policy.json /app/custom-policy.json' \
 'fi' \
-'chmod 666 /app/custom-policy.json' \
+'# Ensure node user owns the policy file (Coolify persistent storage may mount it as root)' \
+'chown node:node /app/custom-policy.json 2>/dev/null || true' \
+'chmod 666 /app/custom-policy.json 2>/dev/null || true' \
 'mkdir -p "$CAPTURE_DIR"' \
+'chown node:node "$CAPTURE_DIR" 2>/dev/null || true' \
 'chmod 777 "$CAPTURE_DIR"' \
 'echo "Starting ContextIO Proxy on port 4040..."' \
 'node dist/server.js &' \
