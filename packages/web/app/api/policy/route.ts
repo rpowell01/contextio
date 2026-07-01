@@ -80,7 +80,8 @@ async function savePolicyToFile(policy: RedactionPolicy): Promise<void> {
     }
   } catch (error) {
     console.error("Failed to save policy file:", error);
-    throw new Error("Failed to persist policy to file");
+    // Preserve the original error for better debugging
+    throw error;
   }
 }
 
