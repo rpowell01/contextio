@@ -148,7 +148,7 @@ RUN echo '#!/bin/sh' > /app/start.sh && \
 
 # Fix permissions for node user (after all files are created)
 # Only change ownership of files we control, not mounted volumes
-RUN chown node:node /app/logger-plugin.js /app/redact-plugin.js /app/start.sh /app/default-policy.json && \
+RUN chown node:node /app/logger-plugin.js /app/redact-plugin.js /app/start.sh /app/default-policy.json /app/captures && \
     chmod +x /app/start.sh
 
 USER node
