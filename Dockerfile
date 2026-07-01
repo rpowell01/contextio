@@ -97,14 +97,7 @@ COPY --from=build /app/packages/web/.next/static ./standalone/packages/web/.next
 # Copy bundled default policy file
 COPY --from=build /app/packages/web/public/default-policy.json /app/default-policy.json
 
-# Create captures directory
-RUN mkdir -p /app/captures && chmod 777 /app/captures
-
-# Create custom-policy.json with default content if it doesn't exist
-RUN if [ ! -f /app/custom-policy.json ]; then \
-    cp /app/default-policy.json /app/custom-policy.json; \
-    fi && chmod 666 /app/custom-policy.json
-
+# Create plugin files at build time (they don't change at runtime)
 # ✅ FIXED: Proper JS (no HTML escaping)
 RUN printf '%s\n' \
 'import { createLoggerPlugin } from "@contextio/logger";' \
@@ -126,6 +119,14 @@ printf '%s\n' \
 # NEXT_PUBLIC_API_URL is left empty to use relative URLs for same-origin API calls
 RUN printf '%s\n' \
 '#!/bin/sh' \
+'echo "Setting up runtime files..."' \
+'if [ ! -f /app/custom-policy.json ]; then' \
+'    echo "Creating custom-policy.json from default..."' \
+'    cp /app/default-policy.json /app/custom-policy.json' \
+'fi' \
+'chmod 666 /app/custom-policy.json' \
+'mkdir -p /app/captures' \
+'chmod 777 /app/captures' \
 'echo "Starting ContextIO Proxy on port 4040..."' \
 'node dist/server.js &' \
 'echo "Starting ContextIO Web UI on port 4041..."' \

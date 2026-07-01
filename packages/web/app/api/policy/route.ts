@@ -68,7 +68,16 @@ async function savePolicyToFile(policy: RedactionPolicy): Promise<void> {
     // Ensure directory exists
     const dir = CUSTOM_POLICY_PATH.substring(0, CUSTOM_POLICY_PATH.lastIndexOf("/"));
     await fs.mkdir(dir, { recursive: true });
+    
+    // Write the policy file
     await fs.writeFile(CUSTOM_POLICY_PATH, JSON.stringify(policy, null, 2), "utf-8");
+    
+    // Ensure the file has proper permissions (world-writable for container environments)
+    try {
+      await fs.chmod(CUSTOM_POLICY_PATH, 0o666);
+    } catch {
+      // Ignore chmod errors (may not be supported on all filesystems)
+    }
   } catch (error) {
     console.error("Failed to save policy file:", error);
     throw new Error("Failed to persist policy to file");
