@@ -217,12 +217,21 @@ export function compilePolicy(json: PolicyJson): CompiledPolicy {
 
 /**
  * Load a policy from a JSON file path. Supports // comments and trailing commas.
+ * Returns null if the file doesn't exist or can't be read.
  */
-export function loadPolicyFile(filePath: string): CompiledPolicy {
-  const raw = fs.readFileSync(filePath, "utf8");
-  const cleaned = stripJsonComments(raw);
-  const json: PolicyJson = JSON.parse(cleaned);
-  return compilePolicy(json);
+export function loadPolicyFile(filePath: string): CompiledPolicy | null {
+  try {
+    const raw = fs.readFileSync(filePath, "utf8");
+    const cleaned = stripJsonComments(raw);
+    const json: PolicyJson = JSON.parse(cleaned);
+    return compilePolicy(json);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      console.warn(`[redact] Policy file not found at ${filePath}, using preset`);
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**

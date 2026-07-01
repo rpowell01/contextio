@@ -1,4 +1,3 @@
-
 FROM node:22-alpine AS build
 WORKDIR /app
 
@@ -100,28 +99,28 @@ COPY --from=build /app/packages/web/.next/static ./standalone/packages/web/.next
 COPY --from=build /app/packages/web/public/default-policy.json /app/default-policy.json
 
 # Create plugin files at build time (they don't change at runtime)
-# ✅ FIXED: Proper JS (no HTML escaping)
+# Use defaults that work without env vars being set
 RUN printf '%s\n' \
 'import { createLoggerPlugin } from "@contextio/logger";' \
-'const captureDir = process.env.LOGGER_CAPTURE_DIR;' \
+'const captureDir = process.env.LOGGER_CAPTURE_DIR || "/app/captures";' \
 'const maxSessions = process.env.LOGGER_MAX_SESSIONS ? parseInt(process.env.LOGGER_MAX_SESSIONS, 10) : 0;' \
+'console.log("Logger plugin: captureDir =", captureDir);' \
 'export default () => createLoggerPlugin({ captureDir, maxSessions });' \
-> /app/logger-plugin.js && \
+'> /app/logger-plugin.js && \
 printf '%s\n' \
 'import { createRedactPlugin } from "@contextio/redact";' \
 'const preset = process.env.REDACT_PRESET || "pii";' \
 'const reversible = process.env.REDACT_REVERSIBLE === "true";' \
-'const policyFile = process.env.REDACT_POLICY_FILE;' \
+'const policyFile = process.env.REDACT_POLICY_FILE || "/app/custom-policy/custom-policy.json";' \
+'console.log("Redact plugin: policyFile =", policyFile);' \
 'const config = policyFile ? { policyFile, reversible } : { preset, reversible };' \
 'export default () => createRedactPlugin(config);' \
-> /app/redact-plugin.js
+'> /app/redact-plugin.js
 
 # Create directories at build time with proper permissions
 # This avoids permission issues when volumes are mounted by external tools like Coolify
 RUN mkdir -p /app/captures /app/custom-policy && \
-    chown -R node:node /app/captures /app/custom-policy && \
-    chmod 777 /app/captures && \
-    chmod 777 /app/custom-policy && \
+    chmod 777 /app/captures /app/custom-policy && \
     ls -la /app/captures /app/custom-policy
 
 # Create a startup script that runs both proxy and web server
@@ -139,21 +138,21 @@ RUN printf '%s\n' \
 'if [ ! -f "$POLICY_FILE" ]; then' \
 '    echo "Policy file not found at $POLICY_FILE, creating from default..."' \
 '    cp /app/default-policy.json "$POLICY_FILE"' \
-'    chown node:node "$POLICY_FILE" 2>/dev/null || true' \
 '    chmod 666 "$POLICY_FILE" 2>/dev/null || true' \
 'fi' \
 'echo "Using policy file: $POLICY_FILE"' \
 'mkdir -p "$CAPTURE_DIR"' \
-'chown node:node "$CAPTURE_DIR" 2>/dev/null || true' \
-'chmod 777 "$CAPTURE_DIR"' \
+'chmod 777 "$CAPTURE_DIR" 2>/dev/null || true' \
 'echo "Starting ContextIO Proxy on port 4040..."' \
 'node dist/server.js &' \
 'echo "Starting ContextIO Web UI on port 4041..."' \
 'cd standalone/packages/web && NEXT_PUBLIC_SITE_URL=http://localhost:4041 PORT=4041 REDACT_POLICY_FILE="$POLICY_FILE" node server.js' \
-> /app/start.sh && chmod +x /app/start.sh
+'> /app/start.sh && chmod +x /app/start.sh
 
 # Fix permissions for node user (after all files are created)
-RUN chown -R node:node /app
+# Only change ownership of files we control, not mounted volumes
+RUN chown node:node /app/logger-plugin.js /app/redact-plugin.js /app/start.sh /app/default-policy.json && \
+    chmod +x /app/start.sh
 
 USER node
 EXPOSE 4040

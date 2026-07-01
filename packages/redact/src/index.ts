@@ -68,7 +68,11 @@ interface SessionState {
 /** Resolve effective policy: explicit policy > policy file > preset (default: "pii"). */
 function resolvePolicy(config?: RedactPluginConfig): CompiledPolicy {
   if (config?.policy) return config.policy;
-  if (config?.policyFile) return loadPolicyFile(config.policyFile);
+  if (config?.policyFile) {
+    const loaded = loadPolicyFile(config.policyFile);
+    if (loaded) return loaded;
+    // Fall through to preset if policy file doesn't exist
+  }
   return fromPreset(config?.preset ?? "pii");
 }
 
