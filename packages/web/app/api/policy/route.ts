@@ -80,6 +80,13 @@ async function savePolicyToFile(policy: RedactionPolicy): Promise<void> {
     }
   } catch (error) {
     console.error("Failed to save policy file:", error);
+    console.error("Error details:", error instanceof Error ? {
+      message: error.message,
+      code: (error as NodeJS.ErrnoException).code,
+      errno: (error as NodeJS.ErrnoException).errno,
+      syscall: (error as NodeJS.ErrnoException).syscall,
+      path: (error as NodeJS.ErrnoException).path
+    } : error);
     // Preserve the original error for better debugging
     throw error;
   }
@@ -169,9 +176,21 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
+    const errorCode = (error as NodeJS.ErrnoException)?.code;
+    const errorErrno = (error as NodeJS.ErrnoException)?.errno;
+    const errorSyscall = (error as NodeJS.ErrnoException)?.syscall;
+    const errorPath = (error as NodeJS.ErrnoException)?.path;
     console.error("Failed to save policy:", error);
     return NextResponse.json(
-      { error: "Failed to save policy", details: errorMessage, stack: errorStack },
+      { 
+        error: "Failed to save policy", 
+        details: errorMessage, 
+        stack: errorStack,
+        code: errorCode,
+        errno: errorErrno,
+        syscall: errorSyscall,
+        path: errorPath
+      },
       { status: 500 }
     );
   }
