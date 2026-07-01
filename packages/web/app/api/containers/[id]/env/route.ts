@@ -1,12 +1,18 @@
 import type { ProxyEnvVar } from "@/types/api";
-import { apiClient } from "@/lib/api";
+
+// Proxy admin API URL (for server-side requests)
+const PROXY_ADMIN_URL = process.env.NEXT_PUBLIC_PROXY_ADMIN_URL || "http://localhost:4040";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   await params; // consume params but we don't need the ID since we query the proxy directly
 
   try {
-    // Fetch real environment variables from the proxy admin API
-    const envVars = await apiClient.getProxyEnvVars();
+    // Fetch real environment variables from the proxy admin API (server-side)
+    const response = await fetch(`${PROXY_ADMIN_URL}/admin/env`);
+    if (!response.ok) {
+      throw new Error(`Proxy admin API returned ${response.status}`);
+    }
+    const envVars: ProxyEnvVar[] = await response.json();
     return Response.json(envVars);
   } catch (error) {
     console.error("Error in container env API:", error);

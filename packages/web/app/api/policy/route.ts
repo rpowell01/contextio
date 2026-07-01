@@ -65,9 +65,15 @@ async function loadPolicyFromFile(): Promise<RedactionPolicy> {
 
 async function savePolicyToFile(policy: RedactionPolicy): Promise<void> {
   try {
-    // Ensure directory exists
+    // Ensure directory exists with proper permissions
     const dir = CUSTOM_POLICY_PATH.substring(0, CUSTOM_POLICY_PATH.lastIndexOf("/"));
-    await fs.mkdir(dir, { recursive: true });
+    
+    // Try to create directory, ignore if it already exists
+    try {
+      await fs.mkdir(dir, { recursive: true, mode: 0o777 });
+    } catch {
+      // Directory might already exist or we don't have permission
+    }
     
     // Write the policy file
     await fs.writeFile(CUSTOM_POLICY_PATH, JSON.stringify(policy, null, 2), "utf-8");

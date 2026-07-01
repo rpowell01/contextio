@@ -100,6 +100,8 @@ export interface ProxyStatus {
   plugins: string[];
   /** Whether traffic logging is enabled */
   logTraffic: boolean;
+  /** Container identifier */
+  containerId?: string;
 }
 
 /**
