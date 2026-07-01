@@ -1,4 +1,4 @@
-import type { Session, ProxyStatus, SessionStats, Capture, CaptureWithRedaction, APIResponse, ContainerEnvVar, LogEntry, LogsFilter, ProxyEnvVar } from "@/types/api";
+import type { Session, ProxyStatus, SessionStats, SessionSummary, SessionMetrics, Capture, CaptureWithRedaction, APIResponse, ContainerEnvVar, LogEntry, LogsFilter, ProxyEnvVar } from "@/types/api";
 
 // API routes are served by the same web server that serves the frontend
 // In Docker: web server on port 4041, API routes are internal (/api/*)
@@ -199,6 +199,14 @@ class APIClient {
     return this.request("/api/sessions");
   }
 
+  async getGroupedSessions(): Promise<{
+    sessions: Session[];
+    summaries: SessionSummary[];
+    metrics: Record<string, SessionMetrics>;
+  }> {
+    return this.request("/api/sessions?groupBySourceDest=true");
+  }
+
   async getSession(id: string): Promise<Session> {
     return this.request(`/api/sessions/${id}`);
   }
@@ -354,6 +362,10 @@ class APIClient {
 
     const query = params.toString();
     return this.request(`/api/captures${query ? `?${query}` : ""}`);
+  }
+
+  async getCapture(id: string): Promise<Capture & { requestBody: Record<string, unknown>; responseBody: string | null }> {
+    return this.request(`/api/captures/${id}`);
   }
 
   // Proxy Admin API methods

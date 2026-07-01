@@ -117,7 +117,7 @@ RUN echo 'import { createRedactPlugin } from "@contextio/redact";' > /app/redact
 # Create directories at build time with proper permissions
 # This avoids permission issues when volumes are mounted by external tools like Coolify
 RUN mkdir -p /app/captures /app/custom-policy && \
-    chmod 777 /app/captures /app/custom-policy && \
+    chmod 700 /app/captures /app/custom-policy && \
     ls -la /app/captures /app/custom-policy
 
 # Create a startup script that runs both proxy and web server
@@ -139,7 +139,7 @@ RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'chmod 666 "$POLICY_FILE" 2>/dev/null || true' >> /app/start.sh && \
     echo 'echo "Using policy file: $POLICY_FILE"' >> /app/start.sh && \
     echo 'mkdir -p "$CAPTURE_DIR"' >> /app/start.sh && \
-    echo 'chmod 777 "$CAPTURE_DIR" 2>/dev/null || true' >> /app/start.sh && \
+    echo 'chmod 700 "$CAPTURE_DIR" 2>/dev/null || true' >> /app/start.sh && \
     echo 'echo "Starting ContextIO Proxy on port 4040..."' >> /app/start.sh && \
     echo 'node dist/server.js &' >> /app/start.sh && \
     echo 'echo "Starting ContextIO Web UI on port 4041..."' >> /app/start.sh && \

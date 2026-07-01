@@ -344,6 +344,30 @@ function extractSource(filename: string): string | null {
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
+    const id = url.pathname.split("/").pop(); // Get capture ID from path
+    
+    // If we have a specific capture ID, return full details
+    if (id && id !== "captures") {
+      const filepath = join(CAPTURE_DIR, id);
+      const stats = await fs.stat(filepath).catch(() => null);
+      if (!stats) {
+        return Response.json({ error: "Capture not found" }, { status: 404 });
+      }
+      if (stats.size > MAX_FILE_SIZE) {
+        return Response.json({ error: "Capture file too large" }, { status: 413 });
+      }
+      
+      const raw = await fs.readFile(filepath, "utf8");
+      const data = JSON.parse(raw) as Record<string, unknown>;
+      const capture = extractCaptureMetadata(id, data);
+      
+      return Response.json({
+        ...capture,
+        requestBody: data.requestBody,
+        responseBody: data.responseBody,
+      });
+    }
+    
     const sessionId = url.searchParams.get("sessionId");
     const source = url.searchParams.get("source");
     const status = url.searchParams.get("status");

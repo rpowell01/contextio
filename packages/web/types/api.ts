@@ -69,6 +69,72 @@ export interface SessionStats {
 }
 
 /**
+ * Aggregated metrics for a session group.
+ */
+export interface SessionMetrics {
+  /** Total inbound source bytes */
+  totalInboundBytes: number;
+  /** Total outbound destination bytes */
+  totalOutboundBytes: number;
+  /** Inbound performance metrics (bytes/sec) */
+  inboundThroughput: number;
+  /** Outbound performance metrics (bytes/sec) */
+  outboundThroughput: number;
+  /** Total context values */
+  totalContextValues: number;
+  /** Redaction statistics */
+  redactionStats: {
+    totalRedactions: number;
+    byRule: Record<string, number>;
+  };
+}
+
+/**
+ * Detailed session information including metrics and context values.
+ */
+export interface SessionDetail extends Session {
+  /** Aggregated metrics for this session */
+  metrics?: SessionMetrics;
+  /** Context values captured during the session */
+  contextValues?: Record<string, unknown>;
+  /** Redaction statistics for the session */
+  redactionStats?: {
+    totalRedactions: number;
+    byRule: Record<string, number>;
+  };
+}
+
+/**
+ * A session summary for list views.
+ */
+export interface SessionSummary {
+  /** Session identifier */
+  sessionId: string;
+  /** Source system name */
+  source: string;
+  /** Destination provider */
+  destination: string;
+  /** Total number of captures in this session */
+  captureCount: number;
+  /** Total request bytes across all captures */
+  totalRequestBytes: number;
+  /** Total response bytes across all captures */
+  totalResponseBytes: number;
+  /** Total time across all captures (ms) */
+  totalTimeMs: number;
+  /** Timestamp of the first capture */
+  firstTimestamp: string;
+  /** Timestamp of the last capture */
+  lastTimestamp: string;
+  /** Token usage summary */
+  tokenUsage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
+}
+
+/**
  * Configuration for an API provider.
  */
 export interface ProviderConfig {
@@ -238,7 +304,17 @@ export interface RedactionDetails {
 }
 
 /**
- * A capture with full redaction details included.
+ * A capture with full details including request/response body.
+ */
+export interface CaptureDetail extends Capture {
+  /** Request body as key-value pairs */
+  requestBody: Record<string, unknown>;
+  /** Response body as string, or null if not available */
+  responseBody: string | null;
+}
+
+/**
+ * A capture with redaction information.
  */
 export interface CaptureWithRedaction extends Capture {
   /** Redaction details for this capture */

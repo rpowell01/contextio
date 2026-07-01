@@ -7,8 +7,18 @@ import { policySchema } from "@/lib/schema";
 
 const POLICY_FILE_PATH = "/api/policy";
 
+// Default policy matching the bundled default - used as fallback
 const defaultPolicy: RedactionPolicy = {
   extends: "secrets",
+  rules: [],
+  allowlist: {
+    strings: [],
+    patterns: [],
+  },
+  paths: {
+    only: [],
+    skip: [],
+  },
 };
 
 interface PolicyEditorProps {
