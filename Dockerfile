@@ -2,6 +2,11 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
+# Build args for version info
+ARG BUILDTIME
+ARG VERSION
+ARG REVISION
+
 # Copy root package files for pnpm install
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .npmrc ./
 
@@ -48,26 +53,16 @@ COPY packages/web/public packages/web/public
 COPY packages/cli/src packages/cli/src
 COPY packages/cli/tsconfig.json packages/cli/tsconfig.json
 
-# Build all packages
-RUN pnpm -r build
+# Build all packages with build-time env vars for version info
+RUN GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
+    BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+    VERSION=$(cat package.json | grep '"version"' | head -1 | sed 's/.*"version": "\([^"]*\)".*/\1/') \
+    && export GIT_COMMIT BUILD_TIME VERSION \
+    && pnpm -r build
 
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
-
-ARG BUILDTIME
-ARG VERSION
-ARG REVISION
-
-LABEL org.opencontainers.image.title="contextio"
-LABEL org.opencontainers.image.description="LLM API proxy with redaction, logging, and web UI. Zero external dependencies."
-LABEL org.opencontainers.image.url="https://github.com/larsderidder/contextio"
-LABEL org.opencontainers.image.source="https://github.com/larsderidder/contextio"
-LABEL org.opencontainers.image.vendor="Lars de Ridder"
-LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.version="${VERSION}"
-LABEL org.opencontainers.image.created="${BUILDTIME}"
-LABEL org.opencontainers.image.revision="${REVISION}"
 
 ENV NODE_ENV=production
 ENV CONTEXT_PROXY_BIND_HOST=0.0.0.0
@@ -78,6 +73,13 @@ ENV DEBUG_ROUTING=false
 ENV LOGGER_CAPTURE_DIR=/app/captures
 ENV REDACT_POLICY_FILE=/app/custom-policy.json
 ENV NEXT_PUBLIC_SITE_URL=http://localhost:4041
+
+LABEL org.opencontainers.image.title="contextio"
+LABEL org.opencontainers.image.description="LLM API proxy with redaction, logging, and web UI. Zero external dependencies."
+LABEL org.opencontainers.image.url="https://github.com/larsderidder/contextio"
+LABEL org.opencontainers.image.source="https://github.com/larsderidder/contextio"
+LABEL org.opencontainers.image.vendor="Lars de Ridder"
+LABEL org.opencontainers.image.licenses="MIT"
 
 # Enable corepack for pnpm in runtime
 RUN corepack enable

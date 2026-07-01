@@ -1,15 +1,42 @@
+"use client";
+
 import { MainLayout } from "@/components/main-layout";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+
+interface BuildInfo {
+  version: string;
+  buildTime: string;
+  gitCommit: string;
+}
 
 export default function HomePage() {
+  const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
+
+  useEffect(() => {
+    fetch("/api/version")
+      .then((res) => res.json())
+      .then(setBuildInfo)
+      .catch(console.error);
+  }, []);
+
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Monitor and inspect your LLM API traffic through ContextIO proxy.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Monitor and inspect your LLM API traffic through ContextIO proxy.
+            </p>
+          </div>
+          {buildInfo && (
+            <div className="text-right text-xs text-muted-foreground font-mono">
+              <div>v{buildInfo.version}</div>
+              <div>{buildInfo.gitCommit}</div>
+              <div>{new Date(buildInfo.buildTime).toLocaleString()}</div>
+            </div>
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
