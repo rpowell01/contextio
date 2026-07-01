@@ -119,7 +119,6 @@ printf '%s\n' \
 # Create a startup script that runs both proxy and web server
 # Note: API routes are served by the web server on port 4041, so we use relative URLs
 # NEXT_PUBLIC_API_URL is left empty to use relative URLs for same-origin API calls
-# Use LOGGER_CAPTURE_DIR from environment (set by Coolify) for both proxy and web app
 # Policy file is in mounted directory /app/custom-policy/custom-policy.json
 RUN printf '%s\n' \
 '#!/bin/sh' \
@@ -133,9 +132,11 @@ RUN printf '%s\n' \
 '    echo "Policy file not found at $POLICY_FILE, creating from default..."' \
 '    cp /app/default-policy.json "$POLICY_FILE"' \
 'fi' \
-'# Ensure node user owns and can write to policy file' \
+'# Ensure node user owns and can write to policy file - aggressive fix for directory mounts' \
+'echo "Setting permissions on policy file..."' \
 'chown node:node "$POLICY_FILE" 2>/dev/null || true' \
 'chmod 666 "$POLICY_FILE" 2>/dev/null || true' \
+'ls -la "$POLICY_FILE"' \
 'export REDACT_POLICY_FILE="$POLICY_FILE"' \
 'echo "Using policy file: $REDACT_POLICY_FILE"' \
 'mkdir -p "$CAPTURE_DIR"' \
@@ -144,7 +145,7 @@ RUN printf '%s\n' \
 'echo "Starting ContextIO Proxy on port 4040..."' \
 'node dist/server.js &' \
 'echo "Starting ContextIO Web UI on port 4041..."' \
-'cd standalone/packages/web && NEXT_PUBLIC_SITE_URL=http://localhost:4041 PORT=4041 node server.js' \
+'cd standalone/packages/web && NEXT_PUBLIC_SITE_URL=http://localhost:4041 PORT=4041 REDACT_POLICY_FILE="$POLICY_FILE" node server.js' \
 > /app/start.sh && chmod +x /app/start.sh
 
 # Fix permissions for node user (after all files are created)
