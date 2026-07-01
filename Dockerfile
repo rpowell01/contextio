@@ -71,7 +71,7 @@ ENV CONTEXT_PROXY_PLUGINS=/app/logger-plugin.js,/app/redact-plugin.js
 ENV LOG_TRAFFIC=false
 ENV DEBUG_ROUTING=false
 ENV LOGGER_CAPTURE_DIR=/app/captures
-ENV REDACT_POLICY_FILE=/app/custom-policy.json
+ENV REDACT_POLICY_FILE=/app/custom-policy/custom-policy.json
 ENV NEXT_PUBLIC_SITE_URL=http://localhost:4041
 
 LABEL org.opencontainers.image.title="contextio"
@@ -116,6 +116,14 @@ printf '%s\n' \
 'export default () => createRedactPlugin(config);' \
 > /app/redact-plugin.js
 
+# Create directories at build time with proper permissions
+# This avoids permission issues when volumes are mounted by external tools like Coolify
+RUN mkdir -p /app/captures /app/custom-policy && \
+    chown -R node:node /app/captures /app/custom-policy && \
+    chmod 777 /app/captures && \
+    chmod 777 /app/custom-policy && \
+    ls -la /app/captures /app/custom-policy
+
 # Create a startup script that runs both proxy and web server
 # Note: API routes are served by the web server on port 4041, so we use relative URLs
 # NEXT_PUBLIC_API_URL is left empty to use relative URLs for same-origin API calls
@@ -123,34 +131,18 @@ printf '%s\n' \
 RUN printf '%s\n' \
 '#!/bin/sh' \
 'echo "Setting up runtime files..."' \
-'# Use CAPTURE_DIR from env (Coolify sets this) or default to /app/captures' \
+'# Use CAPTURE_DIR from env or default to /app/captures' \
 'CAPTURE_DIR="${LOGGER_CAPTURE_DIR:-/app/captures}"' \
 'echo "Using capture directory: $CAPTURE_DIR"' \
-'# Policy file is in mounted directory /app/custom-policy/custom-policy.json' \
+'# Policy file in mounted directory' \
 'POLICY_FILE="/app/custom-policy/custom-policy.json"' \
 'if [ ! -f "$POLICY_FILE" ]; then' \
 '    echo "Policy file not found at $POLICY_FILE, creating from default..."' \
 '    cp /app/default-policy.json "$POLICY_FILE"' \
+'    chown node:node "$POLICY_FILE" 2>/dev/null || true' \
+'    chmod 666 "$POLICY_FILE" 2>/dev/null || true' \
 'fi' \
-'# Ensure node user owns and can write to policy file - try to fix mount permissions' \
-'echo "Setting permissions on policy file..."' \
-'chown node:node "$POLICY_FILE" 2>/dev/null || true' \
-'chmod 666 "$POLICY_FILE" 2>/dev/null || true' \
-'ls -la "$POLICY_FILE"' \
-'# If still not writable, copy to writable location and use that' \
-'if [ ! -w "$POLICY_FILE" ]; then' \
-'    echo "Policy file not writable, creating writable copy at /home/node/policy/custom-policy.json"' \
-'    mkdir -p /home/node/policy' \
-'    cp "$POLICY_FILE" /home/node/policy/custom-policy.json' \
-'    chown node:node /home/node/policy/custom-policy.json' \
-'    chmod 666 /home/node/policy/custom-policy.json' \
-'    POLICY_FILE="/home/node/policy/custom-policy.json"' \
-'    echo "Using writable policy file: $POLICY_FILE"' \
-'else' \
-'    echo "Policy file is writable"' \
-'fi' \
-'export REDACT_POLICY_FILE="$POLICY_FILE"' \
-'echo "Using policy file: $REDACT_POLICY_FILE"' \
+'echo "Using policy file: $POLICY_FILE"' \
 'mkdir -p "$CAPTURE_DIR"' \
 'chown node:node "$CAPTURE_DIR" 2>/dev/null || true' \
 'chmod 777 "$CAPTURE_DIR"' \

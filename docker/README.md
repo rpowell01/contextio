@@ -70,11 +70,11 @@ All configuration is via environment variables.
 | `CONTEXT_PROXY_PLUGINS` | `/app/logger-plugin.js` | Comma-separated plugin paths |
 | `CONTEXT_PROXY_BIND_HOST` | `0.0.0.0` | Bind address |
 | `CONTEXT_PROXY_PORT` | `4040` | Port to listen on |
-| `LOGGER_CAPTURE_DIR` | `~/.contextio/captures` | Capture output directory |
+| `LOGGER_CAPTURE_DIR` | `/app/captures` | Capture output directory |
 | `LOGGER_MAX_SESSIONS` | `0` (unlimited) | Max sessions to retain |
 | `REDACT_PRESET` | `pii` | Preset: `secrets`, `pii`, `strict` |
 | `REDACT_REVERSIBLE` | `false` | Restore originals in responses |
-| `REDACT_POLICY_FILE` | _(none)_ | Path to custom policy JSON |
+| `REDACT_POLICY_FILE` | _(none)_ | Path to custom policy JSON (default: `/app/custom-policy/custom-policy.json`) |
 
 ### Detailed Configuration
 
@@ -101,15 +101,10 @@ Plugins are loaded from `CONTEXT_PROXY_PLUGINS` (comma-separated module paths). 
 #### Enable Redaction
 
 ```bash
-# Logging + PII redaction
+# Mount a volume to persist captures
 docker run --rm -p 4040:4040 \
-  -e CONTEXT_PROXY_PLUGINS=/app/logger-plugin.js,/app/redact-plugin.js \
-  ghcr.io/larsderidder/contextio:latest
-
-# Logging + reversible redaction (restores originals in responses)
-docker run --rm -p 4040:4040 \
-  -e CONTEXT_PROXY_PLUGINS=/app/logger-plugin.js,/app/redact-plugin.js \
-  -e REDACT_REVERSIBLE=true \
+  -e LOGGER_CAPTURE_DIR=/app/captures \
+  -v ./captures:/app/captures \
   ghcr.io/larsderidder/contextio:latest
 ```
 
@@ -167,14 +162,14 @@ docker run --rm -p 4040:4040 \
 
 - `REDACT_PRESET`: Built-in preset (`secrets`, `pii`, `strict`) (default: `pii`)
 - `REDACT_REVERSIBLE`: Restore originals in responses (`true`/`false`) (default: `false`)
-- `REDACT_POLICY_FILE`: Path to custom policy JSON (overrides `REDACT_PRESET`)
+- `REDACT_POLICY_FILE`: Path to custom policy JSON (default: `/app/custom-policy/custom-policy.json`, overrides `REDACT_PRESET`)
 
 ```bash
 # Custom redaction policy
 docker run --rm -p 4040:4040 \
   -e CONTEXT_PROXY_PLUGINS=/app/logger-plugin.js,/app/redact-plugin.js \
-  -e REDACT_POLICY_FILE=/app/policy.json \
-  -v $(pwd)/my-policy.json:/app/policy.json:ro \
+  -e REDACT_POLICY_FILE=/app/custom-policy/custom-policy.json \
+  -v $(pwd)/my-policy.json:/app/custom-policy/custom-policy.json:ro \
   ghcr.io/larsderidder/contextio:latest
 ```
 
@@ -182,11 +177,23 @@ docker run --rm -p 4040:4040 \
 
 ## Capture Persistence
 
-By default, captures are written to `/home/node/.contextio/captures` inside the container. Mount a volume to persist them:
+Captures are persisted in named volumes mounted at `/app/captures` inside the container. The container creates these directories at build time with proper permissions for the non-root `node` user.
+
+### Using Docker Compose (Recommended)
+
+A `docker-compose.yml` file is included in the repository root with pre-configured volumes:
 
 ```bash
-docker run --rm -p 4040:4040 \
-  -v ./captures:/home/node/.contextio/captures \
+docker compose up -d
+```
+
+This creates named volumes (`captures` and `policy`) that are managed by Docker and persist automatically.
+
+### Manual Docker Run
+
+```bash
+docker run --rm -p 4040:4040 -p 4041:4041 \
+  -v ./captures:/app/captures \
   contextio-proxy
 ```
 
@@ -197,20 +204,24 @@ Files on the host will be owned by UID `1000` (the `node` user inside the contai
 ```yaml
 version: "3.8"
 services:
-  contextio-proxy:
-    image: ghcr.io/larsderidder/contextio:latest
+  contextio:
+    build: .
     ports:
       - "4040:4040"
+      - "4041:4041"
     volumes:
-      - ./captures:/home/node/.contextio/captures
+      # Captures directory - writable by node user (UID 1000)
+      - captures:/app/captures
+      # Policy directory - writable by node user
+      - policy:/app/custom-policy
     environment:
-      # Logging only (default)
+      LOGGER_CAPTURE_DIR: /app/captures
       CONTEXT_PROXY_PLUGINS: /app/logger-plugin.js
-      # Or enable redaction:
-      # CONTEXT_PROXY_PLUGINS: /app/logger-plugin.js,/app/redact-plugin.js
-      # REDACT_PRESET: pii
-      # REDACT_REVERSIBLE: "true"
     restart: unless-stopped
+
+volumes:
+  captures:
+  policy:
 ```
 
 With custom policy:
@@ -222,11 +233,11 @@ services:
     ports:
       - "4040:4040"
     volumes:
-      - ./captures:/home/node/.contextio/captures
-      - ./my-policy.json:/app/custom-policy.json:ro
+      - ./captures:/app/captures
+      - ./my-policy.json:/app/custom-policy/custom-policy.json:ro
     environment:
       CONTEXT_PROXY_PLUGINS: /app/logger-plugin.js,/app/redact-plugin.js
-      REDACT_POLICY_FILE: /app/custom-policy.json
+      REDACT_POLICY_FILE: /app/custom-policy/custom-policy.json
       REDACT_REVERSIBLE: "false"
     restart: unless-stopped
 ```
@@ -269,4 +280,4 @@ Change the port with `-p 4041:4040` or set `CONTEXT_PROXY_PORT=4041`.
 
 **Captures not persisting:**
 
-Mount a volume to `/home/node/.contextio/captures`. Without a volume, captures are lost when the container stops.
+Mount a volume to `/app/captures`. Without a volume, captures are lost when the container stops.

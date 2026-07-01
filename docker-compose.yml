@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  contextio:
+    build: .
+    ports:
+      - "4040:4040"
+      - "4041:4041"
+    volumes:
+      # Captures directory - writable by node user (UID 1000)
+      - captures:/app/captures
+      # Policy directory - writable by node user
+      - policy:/app/custom-policy
+    environment:
+      # Logging configuration
+      LOGGER_CAPTURE_DIR: /app/captures
+      LOGGER_MAX_SESSIONS: 0
+      # Redaction configuration (optional - enable with policy file)
+      # REDACT_POLICY_FILE: /app/custom-policy/custom-policy.json
+      # REDACT_REVERSIBLE: "false"
+      # REDACT_PRESET: pii
+      # Plugin configuration (add /app/redact-plugin.js to enable redaction)
+      CONTEXT_PROXY_PLUGINS: /app/logger-plugin.js
+      # Web UI configuration
+      NEXT_PUBLIC_SITE_URL: http://localhost:4041
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4040"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  captures:
+    driver: local
+  policy:
+    driver: local
