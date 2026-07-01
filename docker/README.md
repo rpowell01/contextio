@@ -189,6 +189,19 @@ docker compose up -d
 
 This creates named volumes (`captures` and `policy`) that are managed by Docker and persist automatically.
 
+### Coolify Deployment
+
+When deploying to Coolify, use these persistent storage mappings:
+
+| Source Path | Destination Path |
+|-------------|------------------|
+| `/data/coolify/applications/contextio-next/captures` | `/app/captures` |
+| `/data/coolify/applications/contextio-next/policy` | `/app/custom-policy` |
+
+Configure in Coolify's **Persistent Directories** settings:
+- **Captures**: Host path `/data/coolify/applications/contextio-next/captures` → Container path `/app/captures`
+- **Policy**: Host path `/data/coolify/applications/contextio-next/policy` → Container path `/app/custom-policy`
+
 ### Manual Docker Run
 
 ```bash
