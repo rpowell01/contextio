@@ -100,22 +100,19 @@ COPY --from=build /app/packages/web/public/default-policy.json /app/default-poli
 
 # Create plugin files at build time (they don't change at runtime)
 # Use defaults that work without env vars being set
-RUN printf '%s\n' \
-'import { createLoggerPlugin } from "@contextio/logger";' \
-'const captureDir = process.env.LOGGER_CAPTURE_DIR || "/app/captures";' \
-'const maxSessions = process.env.LOGGER_MAX_SESSIONS ? parseInt(process.env.LOGGER_MAX_SESSIONS, 10) : 0;' \
-'console.log("Logger plugin: captureDir =", captureDir);' \
-'export default () => createLoggerPlugin({ captureDir, maxSessions });' \
-'> /app/logger-plugin.js && \
-printf '%s\n' \
-'import { createRedactPlugin } from "@contextio/redact";' \
-'const preset = process.env.REDACT_PRESET || "pii";' \
-'const reversible = process.env.REDACT_REVERSIBLE === "true";' \
-'const policyFile = process.env.REDACT_POLICY_FILE || "/app/custom-policy/custom-policy.json";' \
-'console.log("Redact plugin: policyFile =", policyFile);' \
-'const config = policyFile ? { policyFile, reversible } : { preset, reversible };' \
-'export default () => createRedactPlugin(config);' \
-'> /app/redact-plugin.js
+RUN echo 'import { createLoggerPlugin } from "@contextio/logger";' > /app/logger-plugin.js && \
+    echo 'const captureDir = process.env.LOGGER_CAPTURE_DIR || "/app/captures";' >> /app/logger-plugin.js && \
+    echo 'const maxSessions = process.env.LOGGER_MAX_SESSIONS ? parseInt(process.env.LOGGER_MAX_SESSIONS, 10) : 0;' >> /app/logger-plugin.js && \
+    echo 'console.log("Logger plugin: captureDir =", captureDir);' >> /app/logger-plugin.js && \
+    echo 'export default () => createLoggerPlugin({ captureDir, maxSessions });' >> /app/logger-plugin.js
+
+RUN echo 'import { createRedactPlugin } from "@contextio/redact";' > /app/redact-plugin.js && \
+    echo 'const preset = process.env.REDACT_PRESET || "pii";' >> /app/redact-plugin.js && \
+    echo 'const reversible = process.env.REDACT_REVERSIBLE === "true";' >> /app/redact-plugin.js && \
+    echo 'const policyFile = process.env.REDACT_POLICY_FILE || "/app/custom-policy/custom-policy.json";' >> /app/redact-plugin.js && \
+    echo 'console.log("Redact plugin: policyFile =", policyFile);' >> /app/redact-plugin.js && \
+    echo 'const config = policyFile ? { policyFile, reversible } : { preset, reversible };' >> /app/redact-plugin.js && \
+    echo 'export default () => createRedactPlugin(config);' >> /app/redact-plugin.js
 
 # Create directories at build time with proper permissions
 # This avoids permission issues when volumes are mounted by external tools like Coolify
@@ -127,27 +124,26 @@ RUN mkdir -p /app/captures /app/custom-policy && \
 # Note: API routes are served by the web server on port 4041, so we use relative URLs
 # NEXT_PUBLIC_API_URL is left empty to use relative URLs for same-origin API calls
 # Policy file is in mounted directory /app/custom-policy/custom-policy.json
-RUN printf '%s\n' \
-'#!/bin/sh' \
-'echo "Setting up runtime files..."' \
-'# Use CAPTURE_DIR from env or default to /app/captures' \
-'CAPTURE_DIR="${LOGGER_CAPTURE_DIR:-/app/captures}"' \
-'echo "Using capture directory: $CAPTURE_DIR"' \
-'# Policy file in mounted directory' \
-'POLICY_FILE="/app/custom-policy/custom-policy.json"' \
-'if [ ! -f "$POLICY_FILE" ]; then' \
-'    echo "Policy file not found at $POLICY_FILE, creating from default..."' \
-'    cp /app/default-policy.json "$POLICY_FILE"' \
-'    chmod 666 "$POLICY_FILE" 2>/dev/null || true' \
-'fi' \
-'echo "Using policy file: $POLICY_FILE"' \
-'mkdir -p "$CAPTURE_DIR"' \
-'chmod 777 "$CAPTURE_DIR" 2>/dev/null || true' \
-'echo "Starting ContextIO Proxy on port 4040..."' \
-'node dist/server.js &' \
-'echo "Starting ContextIO Web UI on port 4041..."' \
-'cd standalone/packages/web && NEXT_PUBLIC_SITE_URL=http://localhost:4041 PORT=4041 REDACT_POLICY_FILE="$POLICY_FILE" node server.js' \
-'> /app/start.sh && chmod +x /app/start.sh
+RUN echo '#!/bin/sh' > /app/start.sh && \
+    echo 'echo "Setting up runtime files..."' >> /app/start.sh && \
+    echo '# Use CAPTURE_DIR from env or default to /app/captures' >> /app/start.sh && \
+    echo 'CAPTURE_DIR="${LOGGER_CAPTURE_DIR:-/app/captures}"' >> /app/start.sh && \
+    echo 'echo "Using capture directory: $CAPTURE_DIR"' >> /app/start.sh && \
+    echo '# Policy file in mounted directory' >> /app/start.sh && \
+    echo 'POLICY_FILE="/app/custom-policy/custom-policy.json"' >> /app/start.sh && \
+    echo 'if [ ! -f "$POLICY_FILE" ]; then' >> /app/start.sh && \
+    echo '    echo "Policy file not found at $POLICY_FILE, creating from default..."' >> /app/start.sh && \
+    echo '    cp /app/default-policy.json "$POLICY_FILE"' >> /app/start.sh && \
+    echo '    chmod 666 "$POLICY_FILE" 2>/dev/null || true' >> /app/start.sh && \
+    echo 'fi' >> /app/start.sh && \
+    echo 'echo "Using policy file: $POLICY_FILE"' >> /app/start.sh && \
+    echo 'mkdir -p "$CAPTURE_DIR"' >> /app/start.sh && \
+    echo 'chmod 777 "$CAPTURE_DIR" 2>/dev/null || true' >> /app/start.sh && \
+    echo 'echo "Starting ContextIO Proxy on port 4040..."' >> /app/start.sh && \
+    echo 'node dist/server.js &' >> /app/start.sh && \
+    echo 'echo "Starting ContextIO Web UI on port 4041..."' >> /app/start.sh && \
+    echo 'cd standalone/packages/web && NEXT_PUBLIC_SITE_URL=http://localhost:4041 PORT=4041 REDACT_POLICY_FILE="$POLICY_FILE" node server.js' >> /app/start.sh && \
+    chmod +x /app/start.sh
 
 # Fix permissions for node user (after all files are created)
 # Only change ownership of files we control, not mounted volumes
