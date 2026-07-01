@@ -120,20 +120,24 @@ printf '%s\n' \
 # Note: API routes are served by the web server on port 4041, so we use relative URLs
 # NEXT_PUBLIC_API_URL is left empty to use relative URLs for same-origin API calls
 # Use LOGGER_CAPTURE_DIR from environment (set by Coolify) for both proxy and web app
+# Policy file is in mounted directory /app/custom-policy/custom-policy.json
 RUN printf '%s\n' \
 '#!/bin/sh' \
 'echo "Setting up runtime files..."' \
 '# Use CAPTURE_DIR from env (Coolify sets this) or default to /app/captures' \
 'CAPTURE_DIR="${LOGGER_CAPTURE_DIR:-/app/captures}"' \
 'echo "Using capture directory: $CAPTURE_DIR"' \
-'# Handle custom-policy.json - Coolify may mount it as root-owned via persistent storage' \
-'if [ ! -f /app/custom-policy.json ]; then' \
-'    echo "Creating custom-policy.json from default..."' \
-'    cp /app/default-policy.json /app/custom-policy.json' \
+'# Policy file is in mounted directory /app/custom-policy/custom-policy.json' \
+'POLICY_FILE="/app/custom-policy/custom-policy.json"' \
+'if [ ! -f "$POLICY_FILE" ]; then' \
+'    echo "Policy file not found at $POLICY_FILE, creating from default..."' \
+'    cp /app/default-policy.json "$POLICY_FILE"' \
 'fi' \
-'# Ensure node user owns the policy file (Coolify persistent storage may mount it as root)' \
-'chown node:node /app/custom-policy.json 2>/dev/null || true' \
-'chmod 666 /app/custom-policy.json 2>/dev/null || true' \
+'# Ensure node user owns and can write to policy file' \
+'chown node:node "$POLICY_FILE" 2>/dev/null || true' \
+'chmod 666 "$POLICY_FILE" 2>/dev/null || true' \
+'export REDACT_POLICY_FILE="$POLICY_FILE"' \
+'echo "Using policy file: $REDACT_POLICY_FILE"' \
 'mkdir -p "$CAPTURE_DIR"' \
 'chown node:node "$CAPTURE_DIR" 2>/dev/null || true' \
 'chmod 777 "$CAPTURE_DIR"' \
