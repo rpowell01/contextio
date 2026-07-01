@@ -119,20 +119,24 @@ printf '%s\n' \
 # Create a startup script that runs both proxy and web server
 # Note: API routes are served by the web server on port 4041, so we use relative URLs
 # NEXT_PUBLIC_API_URL is left empty to use relative URLs for same-origin API calls
+# Use LOGGER_CAPTURE_DIR from environment (set by Coolify) for both proxy and web app
 RUN printf '%s\n' \
 '#!/bin/sh' \
 'echo "Setting up runtime files..."' \
+'# Use CAPTURE_DIR from env (Coolify sets this) or default to /app/captures' \
+'CAPTURE_DIR="${LOGGER_CAPTURE_DIR:-/app/captures}"' \
+'echo "Using capture directory: $CAPTURE_DIR"' \
 'if [ ! -f /app/custom-policy.json ]; then' \
 '    echo "Creating custom-policy.json from default..."' \
 '    cp /app/default-policy.json /app/custom-policy.json' \
 'fi' \
 'chmod 666 /app/custom-policy.json' \
-'mkdir -p /app/captures' \
-'chmod 777 /app/captures' \
+'mkdir -p "$CAPTURE_DIR"' \
+'chmod 777 "$CAPTURE_DIR"' \
 'echo "Starting ContextIO Proxy on port 4040..."' \
 'node dist/server.js &' \
 'echo "Starting ContextIO Web UI on port 4041..."' \
-'cd standalone/packages/web && NEXT_PUBLIC_SITE_URL=http://localhost:4041 LOGGER_CAPTURE_DIR=/app/captures PORT=4041 node server.js' \
+'cd standalone/packages/web && NEXT_PUBLIC_SITE_URL=http://localhost:4041 PORT=4041 node server.js' \
 > /app/start.sh && chmod +x /app/start.sh
 
 # Fix permissions for node user (after all files are created)
