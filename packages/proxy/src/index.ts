@@ -23,3 +23,12 @@ export type { ForwardOptions } from "./forward.js";
 // Config resolution (env vars + overrides)
 export { resolveConfig } from "./config.js";
 export type { ResolvedProxyConfig } from "./config.js";
+
+// Admin API for management UI
+export {
+  createAdminHandler,
+  enableLogCapture,
+  getLogs,
+  clearLogs,
+} from "./admin.js";
+export type { ProxyStatus, ProxyEnvVar, LogEntry, AdminOptions } from "./admin.js";

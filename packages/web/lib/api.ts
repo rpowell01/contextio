@@ -1,4 +1,4 @@
-import type { Session, ProxyStatus, SessionStats, Capture, CaptureWithRedaction, APIResponse, ContainerEnvVar, LogEntry, LogsFilter } from "@/types/api";
+import type { Session, ProxyStatus, SessionStats, Capture, CaptureWithRedaction, APIResponse, ContainerEnvVar, LogEntry, LogsFilter, ProxyEnvVar } from "@/types/api";
 
 // API routes are served by the same web server that serves the frontend
 // In Docker: web server on port 4041, API routes are internal (/api/*)
@@ -7,7 +7,10 @@ import type { Session, ProxyStatus, SessionStats, Capture, CaptureWithRedaction,
 const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:4041";
 
-// Get the base URL for API requests based on context
+// Proxy admin API URL (for connecting to the proxy service on port 4040)
+const PROXY_ADMIN_URL = process.env.NEXT_PUBLIC_PROXY_ADMIN_URL || "http://localhost:4040";
+
+// Get the base URL for web API requests based on context
 // In browser: use relative URLs for same-origin requests
 // In server-side rendering (ISR): use SITE_URL for absolute URLs
 function getApiBaseUrl(): string {
@@ -21,6 +24,18 @@ function getApiBaseUrl(): string {
     return ""; // Browser context - use relative URLs
   }
   return SITE_URL; // Server context - use absolute URL
+}
+
+// Get the base URL for proxy admin API requests
+// In Docker: proxy runs on localhost:4040, accessible from web container
+// In development: proxy may run on a different port or host
+function getProxyAdminBaseUrl(): string {
+  // For browser: we need absolute URL to proxy (CORS must be enabled on proxy)
+  // For server-side: we can use the configured proxy admin URL
+  if (typeof window !== "undefined") {
+    return PROXY_ADMIN_URL;
+  }
+  return PROXY_ADMIN_URL;
 }
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 
@@ -192,10 +207,6 @@ class APIClient {
     return this.request(`/api/sessions/${sessionId}/stats`);
   }
 
-  async getProxyStatus(): Promise<ProxyStatus> {
-    return this.request("/api/status");
-  }
-
   async restartProxy(): Promise<{ success: boolean }> {
     return this.request("/api/restart", { method: "POST" });
   }
@@ -343,6 +354,206 @@ class APIClient {
 
     const query = params.toString();
     return this.request(`/api/captures${query ? `?${query}` : ""}`);
+  }
+
+  // Proxy Admin API methods
+  // These connect to the proxy service on port 4040
+
+  async getProxyStatus(signal?: AbortSignal): Promise<ProxyStatus> {
+    const baseUrl = getProxyAdminBaseUrl();
+    return this.requestWithBase(baseUrl, "/admin/status", { signal });
+  }
+
+  async getProxyEnvVars(signal?: AbortSignal): Promise<ProxyEnvVar[]> {
+    const baseUrl = getProxyAdminBaseUrl();
+    return this.requestWithBase(baseUrl, "/admin/env", { signal });
+  }
+
+  async getProxyLogs(filter?: LogsFilter, signal?: AbortSignal): Promise<LogEntry[]> {
+    const baseUrl = getProxyAdminBaseUrl();
+    const params = new URLSearchParams();
+    if (filter?.levels && filter.levels.length > 0) {
+      params.set("levels", filter.levels.join(","));
+    }
+    if (filter?.search) {
+      params.set("search", encodeURIComponent(filter.search));
+    }
+    const data = await this.requestWithBase<{ logs: LogEntry[] }>(baseUrl, `/admin/logs?${params.toString()}`, { signal });
+    return data.logs;
+  }
+
+  async streamProxyLogs(
+    onChunk: (log: LogEntry) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const baseUrl = getProxyAdminBaseUrl();
+    const params = new URLSearchParams();
+    params.set("stream", "true");
+
+    const controller = new AbortController();
+    
+    // Combine provided signal with controller signal
+    const combinedSignal = signal
+      ? this.combineSignals([signal, controller.signal])
+      : controller.signal;
+
+    const responsePromise = fetch(`${baseUrl}/admin/logs?${params.toString()}`, {
+      signal: combinedSignal,
+    });
+
+    try {
+      const response = await responsePromise;
+      if (!response.ok) throw new Error("Failed to stream proxy logs");
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No reader available");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            // Process any remaining buffer content before exiting
+            if (buffer.trim()) {
+              try {
+                const log: LogEntry = JSON.parse(buffer.trim());
+                onChunk(log);
+              } catch {
+                // Skip malformed final line
+              }
+            }
+            break;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          // Process complete lines, keep incomplete line in buffer
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || ""; // Keep the last (possibly incomplete) line
+          for (const line of lines) {
+            if (line.trim()) {
+              try {
+                const log: LogEntry = JSON.parse(line);
+                onChunk(log);
+              } catch {
+                // Skip malformed lines
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error("Request aborted");
+      }
+      throw error;
+    }
+  }
+
+  async clearProxyLogs(): Promise<{ success: boolean }> {
+    const baseUrl = getProxyAdminBaseUrl();
+    return this.requestWithBase(baseUrl, "/admin/clear-logs", {
+      method: "POST",
+    });
+  }
+
+  /**
+   * Make a request with a custom base URL (for proxy admin API)
+   */
+  private async requestWithBase<T>(
+    baseUrl: string,
+    endpoint: string,
+    options?: RequestInit,
+    retryConfig: RetryConfig = DEFAULT_RETRY_CONFIG,
+  ): Promise<T> {
+    let lastError: Error | undefined;
+    let retryDelay = retryConfig.initialDelay;
+
+    for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+
+      // Combine provided signal with timeout controller signal
+      const providedSignal = options?.signal;
+      const signal = providedSignal
+        ? this.combineSignals([providedSignal, controller.signal])
+        : controller.signal;
+
+      // Check if already aborted before making request
+      if (signal.aborted) {
+        clearTimeout(timeoutId);
+        throw new Error("Request aborted");
+      }
+
+      try {
+        const response = await fetch(`${baseUrl}${endpoint}`, {
+          ...options,
+          signal,
+          headers: {
+            "Content-Type": "application/json",
+            ...(options?.headers || {}),
+          },
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          let errorMessage = response.statusText;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || response.statusText;
+          } catch {
+            // Response body is not JSON or empty
+          }
+          const error = new Error(`API request failed: ${response.status} ${errorMessage}`);
+          
+          // Check if we should retry for transient errors
+          if (attempt < retryConfig.maxRetries && isTransientError(error, response.status)) {
+            // Check signal before sleeping
+            if (signal.aborted) {
+              throw new Error("Request aborted");
+            }
+            // Add jitter to prevent thundering herd
+            const jitter = Math.random() * 100;
+            await sleep(retryDelay + jitter);
+            retryDelay = Math.min(retryDelay * retryConfig.backoffFactor, retryConfig.maxDelay);
+            lastError = error;
+            continue;
+          }
+          throw error;
+        }
+
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        
+        if (error instanceof Error) {
+          if (error.name === "AbortError") {
+            throw new Error("Request aborted");
+          }
+          
+          // Check if we should retry for transient network errors
+          if (attempt < retryConfig.maxRetries && isTransientError(error)) {
+            // Check signal before sleeping
+            if (signal.aborted) {
+              throw new Error("Request aborted");
+            }
+            // Add jitter to prevent thundering herd
+            const jitter = Math.random() * 100;
+            await sleep(retryDelay + jitter);
+            retryDelay = Math.min(retryDelay * retryConfig.backoffFactor, retryConfig.maxDelay);
+            lastError = error;
+            continue;
+          }
+          throw error;
+        }
+        throw new Error("Network error");
+      }
+    }
+
+    throw lastError || new Error("Request failed after retries");
   }
 }
 

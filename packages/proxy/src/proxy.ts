@@ -11,6 +11,7 @@ import type { ProxyConfig, ProxyPlugin } from "@contextio/core";
 
 import { resolveConfig } from "./config.js";
 import { createProxyHandler } from "./forward.js";
+import { createAdminHandler, enableLogCapture } from "./admin.js";
 
 export interface ProxyInstance {
   /** Start listening. Resolves when the server is ready. */
@@ -39,15 +40,33 @@ export function createProxy(
 ): ProxyInstance {
   const resolved = resolveConfig(config);
   const plugins: ProxyPlugin[] = config?.plugins ?? [];
+  const logTraffic = !!config?.logTraffic;
 
-  const handler = createProxyHandler({
+  const startTime = Date.now();
+
+  // Enable log capture for admin API
+  enableLogCapture();
+
+  const proxyHandler = createProxyHandler({
     upstreams: resolved.upstreams,
     allowTargetOverride: resolved.allowTargetOverride,
     plugins,
-    logTraffic: !!config?.logTraffic,
+    logTraffic,
   });
 
-  const server = http.createServer(handler);
+  const adminHandler = createAdminHandler({ plugins, logTraffic, startTime });
+
+  // Combined handler that routes /admin/* to admin handler
+  const combinedHandler: http.RequestListener = (req, res) => {
+    const url = req.url || "";
+    if (url.startsWith("/admin/")) {
+      adminHandler(req, res);
+    } else {
+      proxyHandler(req, res);
+    }
+  };
+
+  const server = http.createServer(combinedHandler);
   let boundPort = resolved.port;
   let started = false;
 

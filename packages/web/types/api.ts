@@ -88,14 +88,18 @@ export interface ProviderConfig {
 export interface ProxyStatus {
   /** Whether the proxy is currently running */
   running: boolean;
-  /** Process ID if running (optional) */
-  pid?: number;
+  /** Process ID of the proxy */
+  pid: number;
   /** Port the proxy is listening on */
   port: number;
-  /** Human-readable uptime string (if running). Optional. */
-  uptime?: string;
+  /** Human-readable uptime string */
+  uptime: string;
   /** Number of active sessions */
   sessions: number;
+  /** List of loaded plugin names */
+  plugins: string[];
+  /** Whether traffic logging is enabled */
+  logTraffic: boolean;
 }
 
 /**
@@ -406,4 +410,36 @@ export interface LogsExportOptions {
   format: "json" | "text" | "csv";
   /** Filter criteria to apply to the export */
   filter: LogsFilter;
+}
+
+// --- Proxy Admin API ---
+
+/**
+ * Environment variable configuration for the proxy container.
+ */
+export interface ProxyEnvVar {
+  /** The environment variable name/key */
+  key: string;
+  /** The environment variable value */
+  value: string;
+  /** Source of the environment variable */
+  source: "process" | "default";
+}
+
+/**
+ * A single log entry from proxy output.
+ */
+export interface ProxyLogEntry {
+  /** Unique identifier for the log entry */
+  id: string;
+  /** ISO timestamp when the log was recorded */
+  timestamp: string;
+  /** Log severity level */
+  level: LogLevel;
+  /** The log message content */
+  message: string;
+  /** Output stream source (stdout or stderr) */
+  source: "stdout" | "stderr";
+  /** Associated session ID if the log relates to a specific session */
+  sessionId?: string;
 }

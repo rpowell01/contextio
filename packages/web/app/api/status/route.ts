@@ -6,9 +6,12 @@ export async function GET() {
     // For now, return a mock status indicating the proxy is running
     return Response.json({
       running: true,
+      pid: process.pid,
       port: 4040,
       sessions: 0,
       uptime: "0s",
+      plugins: [],
+      logTraffic: false,
     } satisfies ProxyStatus);
   } catch (error) {
     console.error("Error in status API:", error);
