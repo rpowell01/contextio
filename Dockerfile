@@ -132,11 +132,23 @@ RUN printf '%s\n' \
 '    echo "Policy file not found at $POLICY_FILE, creating from default..."' \
 '    cp /app/default-policy.json "$POLICY_FILE"' \
 'fi' \
-'# Ensure node user owns and can write to policy file - aggressive fix for directory mounts' \
+'# Ensure node user owns and can write to policy file - try to fix mount permissions' \
 'echo "Setting permissions on policy file..."' \
 'chown node:node "$POLICY_FILE" 2>/dev/null || true' \
 'chmod 666 "$POLICY_FILE" 2>/dev/null || true' \
 'ls -la "$POLICY_FILE"' \
+'# If still not writable, copy to writable location and use that' \
+'if [ ! -w "$POLICY_FILE" ]; then' \
+'    echo "Policy file not writable, creating writable copy at /home/node/policy/custom-policy.json"' \
+'    mkdir -p /home/node/policy' \
+'    cp "$POLICY_FILE" /home/node/policy/custom-policy.json' \
+'    chown node:node /home/node/policy/custom-policy.json' \
+'    chmod 666 /home/node/policy/custom-policy.json' \
+'    POLICY_FILE="/home/node/policy/custom-policy.json"' \
+'    echo "Using writable policy file: $POLICY_FILE"' \
+'else' \
+'    echo "Policy file is writable"' \
+'fi' \
 'export REDACT_POLICY_FILE="$POLICY_FILE"' \
 'echo "Using policy file: $REDACT_POLICY_FILE"' \
 'mkdir -p "$CAPTURE_DIR"' \
