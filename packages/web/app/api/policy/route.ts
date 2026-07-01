@@ -96,6 +96,54 @@ export async function GET(_request: NextRequest) {
   }
 }
 
+// Debug endpoint to check file status
+export async function POST(_request: NextRequest) {
+  const debugInfo: Record<string, unknown> = {
+    customPolicyPath: CUSTOM_POLICY_PATH,
+    bundledPolicyPath: BUNDLED_POLICY_PATH,
+  };
+
+  try {
+    // Check custom policy file
+    const customStats = await fs.stat(CUSTOM_POLICY_PATH);
+    debugInfo.customPolicyExists = true;
+    debugInfo.customPolicyMode = customStats.mode.toString(8);
+    debugInfo.customPolicySize = customStats.size;
+  } catch (e) {
+    debugInfo.customPolicyExists = false;
+    debugInfo.customPolicyError = e instanceof Error ? e.message : String(e);
+  }
+
+  try {
+    // Check default policy file
+    const defaultStats = await fs.stat(BUNDLED_POLICY_PATH);
+    debugInfo.defaultPolicyExists = true;
+    debugInfo.defaultPolicyMode = defaultStats.mode.toString(8);
+    debugInfo.defaultPolicySize = defaultStats.size;
+  } catch (e) {
+    debugInfo.defaultPolicyExists = false;
+    debugInfo.defaultPolicyError = e instanceof Error ? e.message : String(e);
+  }
+
+  // Check directory permissions
+  try {
+    const dir = CUSTOM_POLICY_PATH.substring(0, CUSTOM_POLICY_PATH.lastIndexOf("/"));
+    const dirStats = await fs.stat(dir);
+    debugInfo.directoryExists = true;
+    debugInfo.directoryMode = dirStats.mode.toString(8);
+  } catch (e) {
+    debugInfo.directoryExists = false;
+    debugInfo.directoryError = e instanceof Error ? e.message : String(e);
+  }
+
+  // Check process info
+  debugInfo.processUid = process.getuid?.() ?? "N/A";
+  debugInfo.processGid = process.getgid?.() ?? "N/A";
+  debugInfo.cwd = process.cwd();
+
+  return NextResponse.json(debugInfo);
+}
+
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
